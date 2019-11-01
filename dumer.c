@@ -239,49 +239,134 @@ static size_t bin_search(const LIST_TYPE *list, size_t len_list,
  * Build a list containing the XORs of all possible combinations of 'p'
  * columns.
  */
-static void build_list(unsigned n, unsigned p, isd_t isd,
-                       const LIST_TYPE *columns, LIST_TYPE *list) {
-  for (unsigned i = p - 1; i < n; ++i) {
-    isd->stack_nb_flips[i - p + 1] = p - 1;
-    isd->stack_maxval[i - p + 1] = i;
-    isd->stack_syndrome[i - p + 1] = columns[i];
-  }
-  uint64_t out_pos = 0;
-  int64_t stack_top = n - p;
-
-  while (stack_top >= 0) {
-    uint16_t nb_flips = isd->stack_nb_flips[stack_top];
-    uint16_t syndrome = isd->stack_syndrome[stack_top];
-    uint32_t max_val = isd->stack_maxval[stack_top];
-
-#if DUMER_L <= 8
-    xor_bcast_32(((uint32_t)syndrome << 24) | ((uint32_t)syndrome << 16) | ((uint32_t)syndrome << 8) | syndrome, (uint8_t *)columns,
-                 (uint8_t *)isd->scratch, AVX_PADDING(max_val * 8) / 256);
-#elif DUMER_L <= 16
-    xor_bcast_32(((uint32_t)syndrome << 16) | syndrome, (uint8_t *)columns,
-                 (uint8_t *)isd->scratch, AVX_PADDING(max_val * 16) / 256);
-#elif DUMER_L <= 32
-    xor_bcast_32(syndrome, (uint8_t *)columns, (uint8_t *)isd->scratch,
-                 AVX_PADDING(max_val * 32) / 256);
-#elif DUMER_L <= 64
-    xor_bcast_64(syndrome, (uint8_t *)columns, (uint8_t *)isd->scratch,
-                 AVX_PADDING(max_val * 64) / 256);
+static void build_list(unsigned n, isd_t isd, const LIST_TYPE *columns,
+                       LIST_TYPE *list) {
+#if DUMER_P1 > 1
+  LIST_TYPE *scratch0 = (LIST_TYPE *)(isd->scratch);
+#if DUMER_P1 > 2
+  LIST_TYPE *scratch1 =
+      (LIST_TYPE *)((uint8_t *)scratch0 + AVX_PADDING(n * LIST_WIDTH) / 8);
+#if DUMER_P1 > 3
+  LIST_TYPE *scratch2 =
+      (LIST_TYPE *)((uint8_t *)scratch1 + AVX_PADDING(n * LIST_WIDTH) / 8);
+#if DUMER_P1 > 4
+  LIST_TYPE *scratch3 =
+      (LIST_TYPE *)((uint8_t *)scratch2 + AVX_PADDING(n * LIST_WIDTH) / 8);
 #endif
-    if (nb_flips == 1) {
-      for (unsigned i = 0; i < max_val; ++i) {
-        list[out_pos] = isd->scratch[i];
-        ++out_pos;
+#endif
+#endif
+#endif
+
+  const LIST_TYPE *prev_scratch = columns;
+#if DUMER_P1 == 1
+  for (size_t i0 = 0; i0 < n; ++i0) {
+#else /* DUMER_P1 > 1 */
+  for (size_t i0 = n; i0-- > DUMER_P1 - 1;) {
+#endif
+    LIST_TYPE val = prev_scratch[i0];
+#if DUMER_P1 >= 2
+#if DUMER_L <= 8
+    xor_bcast_32(((uint32_t)val << 24) | ((uint32_t)val << 16) |
+                     ((uint32_t)val << 8) | val,
+                 (uint8_t *)columns, (uint8_t *)scratch0,
+                 AVX_PADDING(i0 * 8) / 256);
+#elif DUMER_L <= 16
+    xor_bcast_32(((uint32_t)val << 16) | val, (uint8_t *)columns,
+                 (uint8_t *)scratch0, AVX_PADDING(i0 * 16) / 256);
+#elif DUMER_L <= 32
+    xor_bcast_32(val, (uint8_t *)columns, (uint8_t *)scratch0,
+                 AVX_PADDING(i0 * 32) / 256);
+#elif DUMER_L <= 64
+    xor_bcast_64(val, (uint8_t *)columns, (uint8_t *)scratch0,
+                 AVX_PADDING(i0 * 64) / 256);
+#endif
+
+    LIST_TYPE *prev_scratch = scratch0;
+#if DUMER_P1 == 2
+    for (size_t i1 = 0; i1 < i0; ++i1) {
+#else /* DUMER_P1 > 2 */
+    for (size_t i1 = i0; i1-- > DUMER_P1 - 2;) {
+#endif
+      LIST_TYPE val = prev_scratch[i1];
+#if DUMER_P1 >= 3
+#if DUMER_L <= 8
+      xor_bcast_32(((uint32_t)val << 24) | ((uint32_t)val << 16) |
+                       ((uint32_t)val << 8) | val,
+                   (uint8_t *)columns, (uint8_t *)scratch1,
+                   AVX_PADDING(i1 * 8) / 256);
+#elif DUMER_L <= 16
+      xor_bcast_32(((uint32_t)val << 16) | val, (uint8_t *)columns,
+                   (uint8_t *)scratch1, AVX_PADDING(i1 * 16) / 256);
+#elif DUMER_L <= 32
+      xor_bcast_32(val, (uint8_t *)columns, (uint8_t *)scratch1,
+                   AVX_PADDING(i1 * 32) / 256);
+#elif DUMER_L <= 64
+      xor_bcast_64(val, (uint8_t *)columns, (uint8_t *)scratch1,
+                   AVX_PADDING(i1 * 64) / 256);
+#endif
+
+      LIST_TYPE *prev_scratch = scratch1;
+#if DUMER_P1 == 3
+      for (size_t i2 = 0; i2 < i1; ++i2) {
+#else /* DUMER_P1 > 3 */
+      for (size_t i2 = i1; i2-- > DUMER_P1 - 3;) {
+#endif
+        LIST_TYPE val = prev_scratch[i2];
+#if DUMER_P1 >= 4
+#if DUMER_L <= 8
+        xor_bcast_32(((uint32_t)val << 24) | ((uint32_t)val << 16) |
+                         ((uint32_t)val << 8) | val,
+                     (uint8_t *)columns, (uint8_t *)scratch2,
+                     AVX_PADDING(i2 * 8) / 256);
+#elif DUMER_L <= 16
+        xor_bcast_32(((uint32_t)val << 16) | val, (uint8_t *)columns,
+                     (uint8_t *)scratch2, AVX_PADDING(i2 * 16) / 256);
+#elif DUMER_L <= 32
+        xor_bcast_32(val, (uint8_t *)columns, (uint8_t *)scratch2,
+                     AVX_PADDING(i2 * 32) / 256);
+#elif DUMER_L <= 64
+        xor_bcast_64(val, (uint8_t *)columns, (uint8_t *)scratch2,
+                     AVX_PADDING(i2 * 64) / 256);
+#endif
+
+        LIST_TYPE *prev_scratch = scratch2;
+#if DUMER_P1 == 4
+        for (size_t i3 = 0; i3 < i2; ++i3) {
+#else /* DUMER_P1 > 4 */
+        for (size_t i3 = i2; i3-- > DUMER_P1 - 4;) {
+#endif
+          LIST_TYPE val = prev_scratch[i3];
+#if DUMER_L <= 8
+          xor_bcast_32(((uint32_t)val << 24) | ((uint32_t)val << 16) |
+                           ((uint32_t)val << 8) | val,
+                       (uint8_t *)columns, (uint8_t *)scratch3,
+                       AVX_PADDING(i3 * 8) / 256);
+#elif DUMER_L <= 16
+          xor_bcast_32(((uint32_t)val << 16) | val, (uint8_t *)columns,
+                       (uint8_t *)scratch3, AVX_PADDING(i3 * 16) / 256);
+#elif DUMER_L <= 32
+        xor_bcast_32(val, (uint8_t *)columns, (uint8_t *)scratch3,
+                     AVX_PADDING(i3 * 32) / 256);
+#elif DUMER_L <= 64
+        xor_bcast_64(val, (uint8_t *)columns, (uint8_t *)scratch3,
+                     AVX_PADDING(i3 * 64) / 256);
+#endif
+#endif
+#endif
+#endif
+          *(list++) = val;
+#if DUMER_P1 >= 1
+        }
+#if DUMER_P1 >= 2
       }
-      --stack_top;
-    } else {
-      for (unsigned i = nb_flips - 1; i < max_val; ++i) {
-        isd->stack_nb_flips[stack_top + i - nb_flips + 1] = nb_flips - 1;
-        isd->stack_maxval[(stack_top + i - nb_flips + 1)] = i;
-        isd->stack_syndrome[stack_top + i - nb_flips + 1] = isd->scratch[i];
-      }
-      stack_top += (int64_t)max_val - nb_flips;
+#if DUMER_P1 >= 3
     }
+#if DUMER_P1 >= 4
   }
+#endif
+#endif
+#endif
+#endif
 }
 
 /*
@@ -290,46 +375,52 @@ static void build_list(unsigned n, unsigned p, isd_t isd,
  *
  * This list never changes so it is computed only once.
  */
-static void build_list_pos(unsigned n, unsigned p, uint64_t nb_combinations,
-                           uint16_t *pos) {
-  uint16_t *stack_nb_flips = malloc(nb_combinations * sizeof(uint16_t));
-  uint16_t *stack_pos = malloc(p * nb_combinations * sizeof(uint16_t));
-
-  for (unsigned i = p - 1; i < n; ++i) {
-    stack_nb_flips[i - p + 1] = p - 1;
-    stack_pos[p - 1 + (i - p + 1) * p] = i;
-  }
-  uint64_t out_pos = 0;
-  int64_t stack_top = n - p;
-
-  while (stack_top >= 0) {
-    uint16_t nb_flips = stack_nb_flips[stack_top];
-    uint32_t max_val = stack_pos[nb_flips + p * stack_top];
-    uint16_t poss[p];
-    for (unsigned j = nb_flips; j < p; ++j)
-      poss[j] = stack_pos[j + p * stack_top];
-
-    if (nb_flips == 1) {
-      for (unsigned i = 0; i < max_val; ++i) {
-        for (unsigned j = 1; j < p; ++j) {
-          pos[j + p * out_pos] = poss[j];
+static void build_list_pos(unsigned n, uint16_t *pos) {
+  /*
+   * Backward iterating is better when we need to XOR because it avoids
+   * computing an offset. But forward iterating is better when just copying
+   * arrays.
+   */
+#if DUMER_P1 == 1
+  for (size_t i0 = 0; i0 < n; ++i0) {
+#else /* DUMER_P1 > 1 */
+    for (size_t i0 = n; i0-- > DUMER_P1 - 1;) {
+#endif
+#if DUMER_P1 >= 2
+#if DUMER_P1 == 2
+    for (size_t i1 = 0; i1 < i0; ++i1) {
+#else /* DUMER_P1 > 2 */
+      for (size_t i1 = i0; i1-- > DUMER_P1 - 2;) {
+#endif
+#if DUMER_P1 >= 3
+#if DUMER_P1 == 3
+      for (size_t i2 = 0; i2 < i1; ++i2) {
+#else /* DUMER_P1 > 3 */
+        for (size_t i2 = i1; i2-- > DUMER_P1 - 3;) {
+#endif
+#if DUMER_P1 >= 4
+#if DUMER_P1 == 4
+        for (size_t i3 = 0; i3 < i2; ++i3) {
+#else /* DUMER_P1 > 4 */
+          for (size_t i3 = i2; i3-- > DUMER_P1 - 4;) {
+#endif
+          *(pos++) = i3;
+#endif
+          *(pos++) = i2;
+#endif
+          *(pos++) = i1;
+#endif
+          *(pos++) = i0;
         }
-        pos[p * out_pos] = i;
-        ++out_pos;
+#if DUMER_P1 >= 2
       }
-      --stack_top;
-    } else {
-      for (unsigned i = nb_flips - 1; i < max_val; ++i) {
-        stack_nb_flips[stack_top + i - nb_flips + 1] = nb_flips - 1;
-        stack_pos[nb_flips - 1 + p * (stack_top + i - nb_flips + 1)] = i;
-        for (unsigned j = nb_flips; j < p; ++j)
-          stack_pos[j + p * (stack_top + i - nb_flips + 1)] = poss[j];
-      }
-      stack_top += (int64_t)max_val - nb_flips;
+#if DUMER_P1 >= 3
     }
+#if DUMER_P1 >= 4
   }
-  free(stack_nb_flips);
-  free(stack_pos);
+#endif
+#endif
+#endif
 }
 
 /*
@@ -662,8 +753,7 @@ void init_shr(shr_t shr, int n1, int n2) {
    */
   chase(n2 + DUMER_EPS, DUMER_P2, shr->combinations2, shr->combinations2_diff);
 
-  build_list_pos(n1 + DUMER_EPS, DUMER_P1, shr->nb_combinations1,
-                 shr->list1_pos);
+  build_list_pos(n1 + DUMER_EPS, shr->list1_pos);
 }
 
 isd_t alloc_isd(int n, int k, int r, int n1, int n2,
@@ -722,130 +812,123 @@ isd_t alloc_isd(int n, int k, int r, int n1, int n2,
   isd->xor_pairs = aligned_alloc(
       32, (2 * (n2 + DUMER_EPS) - 3) * r_padded_qword * sizeof(uint64_t));
 
-  isd->scratch =
-      aligned_alloc(32, AVX_PADDING(LIST_WIDTH * nb_combinations1) / 8);
-  isd->stack_syndrome = malloc(nb_combinations1 * sizeof(LIST_TYPE));
-  isd->stack_nb_flips = malloc(nb_combinations1 * sizeof(uint16_t));
-  isd->stack_maxval = malloc(nb_combinations1 * sizeof(uint16_t));
+  isd->scratch = aligned_alloc(
+      32, DUMER_P1 * AVX_PADDING((n1 + DUMER_EPS) * LIST_WIDTH) / 8);
   if (!isd->test_syndrome || !isd->current_syndrome || !isd->xor_pairs ||
-      !isd->scratch || !isd->stack_syndrome || !isd->stack_nb_flips ||
-      !isd->stack_maxval)
-    return NULL;
+          !isd->scratch)
+      return NULL;
 
   return isd;
 }
 
 void free_isd(isd_t isd) {
-  mzd_free(isd->A);
-  free(isd->perm);
+    mzd_free(isd->A);
+    free(isd->perm);
 
-  free(isd->list1);
-  free(isd->list1_idx);
+    free(isd->list1);
+    free(isd->list1_idx);
 
-  free(isd->columns1_low);
+    free(isd->columns1_low);
 
-  free(isd->columns1_full);
+    free(isd->columns1_full);
 
-  free(isd->columns2_full);
+    free(isd->columns2_full);
 
 #if !(DUMER_LW)
-  free(isd->s_full);
+    free(isd->s_full);
 #endif
 
-  free(isd->solution);
+    free(isd->solution);
 
-  free(isd->scratch);
-  free(isd->stack_syndrome);
-  free(isd->stack_nb_flips);
-  free(isd->stack_maxval);
+    free(isd->scratch);
 
-  free(isd->test_syndrome);
+    free(isd->test_syndrome);
 #if DUMER_DOOM || DUMER_LW
-  free(isd->current_nosyndrome);
+    free(isd->current_nosyndrome);
 #endif
 #if !(DUMER_LW)
-  free(isd->current_syndrome);
+    free(isd->current_syndrome);
 #endif
-  free(isd->xor_pairs);
+    free(isd->xor_pairs);
 
-  free(isd);
+    free(isd);
 }
 
 void init_isd(isd_t isd, enum type current_type, int n, int k, int w,
-              int *mat_h, int *mat_s) {
+        int *mat_h, int *mat_s) {
 #if DUMER_LW
-  (void)w;
-  (void)mat_s;
+    (void)w;
+    (void)mat_s;
 #endif
-  if (!seed_random(&isd->S0, &isd->S1)) exit(EXIT_FAILURE);
+    if (!seed_random(&isd->S0, &isd->S1)) exit(EXIT_FAILURE);
 
-  /* Build the M4RI matrix. */
-  for (int i = 0; i < n - k; ++i) {
-    mzd_write_bit(isd->A, i, i, 1);
-  }
-  if (current_type == QC) {
-    for (int j = 0; j < k; ++j) {
-      for (int i = 0; i < n - k; ++i) {
-        mzd_write_bit(isd->A, i, k + j, mat_h[(i - j + k) % k]);
-      }
-    }
-  } else if (current_type == SD || current_type == LW || current_type == GO) {
-    for (int j = 0; j < k; ++j) {
-      for (int i = 0; i < n - k; ++i) {
-        mzd_write_bit(isd->A, i, n - k + j, mat_h[i + (n - k) * j]);
-      }
-    }
-  }
-
-  /* Matrix A is extended with the syndrome(s). */
-#if !(DUMER_LW) && !(DUMER_DOOM)
-  for (int i = 0; i < n - k; ++i) {
-    mzd_write_bit(isd->A, i, n, mat_s[i]);
-  }
-#elif !(DUMER_LW) && DUMER_DOOM
-  /*
-   * In quasi-cyclic codes, a circular permutation of a syndrome is the
-   * syndrome of the blockwise circularly permuted error pattern.
-   */
-  for (int j = 0; j < k; ++j) {
+    /* Build the M4RI matrix. */
     for (int i = 0; i < n - k; ++i) {
-      mzd_write_bit(isd->A, i, n + j, mat_s[(i - j + k) % k]);
+        mzd_write_bit(isd->A, i, i, 1);
     }
-  }
+    if (current_type == QC) {
+        for (int j = 0; j < k; ++j) {
+            for (int i = 0; i < n - k; ++i) {
+                mzd_write_bit(isd->A, i, k + j, mat_h[(i - j + k) % k]);
+            }
+        }
+    } else if (current_type == SD || current_type == LW || current_type == GO) {
+        for (int j = 0; j < k; ++j) {
+            for (int i = 0; i < n - k; ++i) {
+                mzd_write_bit(isd->A, i, n - k + j, mat_h[i + (n - k) * j]);
+            }
+        }
+    }
+
+    /* Matrix A is extended with the syndrome(s). */
+#if !(DUMER_LW) && !(DUMER_DOOM)
+    for (int i = 0; i < n - k; ++i) {
+        mzd_write_bit(isd->A, i, n, mat_s[i]);
+    }
+#elif !(DUMER_LW) && DUMER_DOOM
+    /*
+     * In quasi-cyclic codes, a circular permutation of a syndrome is the
+     * syndrome of the blockwise circularly permuted error pattern.
+     */
+    for (int j = 0; j < k; ++j) {
+        for (int i = 0; i < n - k; ++i) {
+            mzd_write_bit(isd->A, i, n + j, mat_s[(i - j + k) % k]);
+        }
+    }
 #endif
 
-  for (int i = 0; i < n; ++i) {
-    isd->perm[i] = i;
-  }
+    for (int i = 0; i < n; ++i) {
+        isd->perm[i] = i;
+    }
 
-  isd->solution = malloc(n * sizeof(uint8_t));
+    isd->solution = malloc(n * sizeof(uint8_t));
 #if DUMER_LW
-  isd->w_target = n;
+    isd->w_target = n;
 #else
-  isd->w_target = w;
+    isd->w_target = w;
 #endif
 }
 
 int dumer(int n, int k, int r, int n1, int n2, shr_t shr, isd_t isd) {
-  /* Choose a random information set and do a Gaussian elimination. */
-  choose_is(isd->A, isd->perm, n, k, DUMER_L, &isd->S0, &isd->S1);
+    /* Choose a random information set and do a Gaussian elimination. */
+    choose_is(isd->A, isd->perm, n, k, DUMER_L, &isd->S0, &isd->S1);
 
-  get_columns_H_prime(isd->A, isd->columns1_low, n1 + DUMER_EPS, r, DUMER_L,
-                      r - DUMER_L);
+    get_columns_H_prime(isd->A, isd->columns1_low, n1 + DUMER_EPS, r, DUMER_L,
+            r - DUMER_L);
 
-  /*
-   * For the first list, we only keep the LIST_WIDTH least significant bits.
-   *
-   * The full column is then fully computed when there is a collision on the
-   * LIST_WIDTH least significant bits in list1 and in list2.
-   */
-  build_list(n1 + DUMER_EPS, DUMER_P1, isd, isd->columns1_low, isd->list1);
+    /*
+     * For the first list, we only keep the LIST_WIDTH least significant bits.
+     *
+     * The full column is then fully computed when there is a collision on the
+     * LIST_WIDTH least significant bits in list1 and in list2.
+     */
+  build_list(n1 + DUMER_EPS, isd, isd->columns1_low, isd->list1);
 
-  /* Keep the original index of an element of the list when sorting. */
-  for (uint64_t i = 0; i < shr->nb_combinations1; ++i) {
-    isd->list1_idx[i] = i;
-  }
-  sort_quick_sort_pair(isd->list1_idx, isd->list1, shr->nb_combinations1);
+    /* Keep the original index of an element of the list when sorting. */
+    for (uint64_t i = 0; i < shr->nb_combinations1; ++i) {
+      isd->list1_idx[i] = i;
+    }
+    sort_quick_sort_pair(isd->list1_idx, isd->list1, shr->nb_combinations1);
 #if (DUMER_LUT) > 0
   /* The lookup table speeds up searching in the sorted list. */
   build_lut(isd->list1, shr->nb_combinations1, isd->list1_lut);

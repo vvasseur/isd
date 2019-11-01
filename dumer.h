@@ -131,10 +131,7 @@ struct isd {
   /* Avoid mallocing and freeing all the time. */
 
   /* Arrays used when building list1. */
-  LIST_TYPE *scratch;
-  LIST_TYPE *stack_syndrome;
-  uint16_t *stack_nb_flips;
-  uint16_t *stack_maxval;
+  uint8_t *scratch;
 
   /* Arrays used during collision search. */
   uint64_t *test_syndrome;
