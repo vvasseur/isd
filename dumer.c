@@ -131,16 +131,6 @@ exit:
   free(z);
 }
 
-/* Shuffle the array *perm. */
-static void fisher_yates(int *perm, rci_t n, uint64_t *S0, uint64_t *S1) {
-  for (int i = 0; i < n - 1; ++i) {
-    uint32_t rand = i + random_lim(n - 1 - i, S0, S1);
-    int swp = perm[i];
-    perm[i] = perm[rand];
-    perm[rand] = swp;
-  }
-}
-
 /* Apply the same permutation to an M4RI matrix and an array. */
 static void fisher_yates_m4ri(mzd_t *A, int *perm, rci_t n, size_t n_stop,
                               uint64_t *S0, uint64_t *S1) {
@@ -172,14 +162,14 @@ static void choose_is(mzd_t *A, int *perm, int n, int k, int l, uint64_t *S0,
 /* Extract columns from *A and keep data 32-byte aligned (fitting AVX
  * registers). */
 static void get_columns_H_prime_avx(mzd_t *A, uint64_t *columns, int n, int r,
-                                    int l, int *bday_perm) {
+                                    int l, int off) {
   int pos_byte = 0;
   int pos_bit = 0;
   columns[pos_byte] = 0;
   for (int j = 0; j < n; ++j) {
     for (int i = 0; i < l; ++i) {
       columns[pos_byte] |=
-          (mzd_read_bit(A, r - 1 - i, bday_perm[j]) ? (1L << pos_bit) : 0);
+          (mzd_read_bit(A, r - 1 - i, j + off) ? (1L << pos_bit) : 0);
       if (++pos_bit == 64) {
         pos_bit = 0;
         columns[++pos_byte] = 0;
@@ -198,14 +188,14 @@ static void get_columns_H_prime_avx(mzd_t *A, uint64_t *columns, int n, int r,
 
 /* Extract columns from *A and keep data LIST_WIDTH-byte aligned. */
 static void get_columns_H_prime(mzd_t *A, LIST_TYPE *columns, int n, int r,
-                                int l, int *bday_perm) {
+                                int l, int off) {
   int pos_word = 0;
   int pos_bit = 0;
   columns[pos_word] = 0;
   for (int j = 0; j < n; ++j) {
     for (int i = 0; i < l; ++i) {
       columns[pos_word] |=
-          (mzd_read_bit(A, r - 1 - i, bday_perm[j]) ? (1L << pos_bit) : 0);
+          (mzd_read_bit(A, r - 1 - i, j + off) ? (1L << pos_bit) : 0);
       if (++pos_bit == LIST_WIDTH) {
         pos_bit = 0;
         columns[++pos_word] = 0;
@@ -369,19 +359,20 @@ static void build_lut(LIST_TYPE *list, size_t len_list, size_t *lut) {
 
 static void build_solution(int n, int r, int n1, shr_t shr, isd_t isd, int pc,
                            int idx1, int idx2, int shift) {
+  int left = r - DUMER_L;
   for (int i = 0; i < n; ++i) {
     isd->solution[i] = 0;
   }
   for (int a = 0; a < DUMER_P1; ++a) {
     int column = shr->list1_pos[a + idx1 * DUMER_P1];
-    int column_permuted = isd->perm[isd->bday_perm[column]];
+    int column_permuted = isd->perm[left + column];
     int column_shifted =
         column_permuted / r * r + (column_permuted + r - shift) % r;
     isd->solution[column_shifted] ^= 1;
   }
   for (int a = 0; a < DUMER_P2; ++a) {
     int column = shr->combinations2[a + idx2 * DUMER_P2] + n1 - DUMER_EPS;
-    int column_permuted = isd->perm[isd->bday_perm[column]];
+    int column_permuted = isd->perm[left + column];
     int column_shifted =
         column_permuted / r * r + (column_permuted + r - shift) % r;
     isd->solution[column_shifted] ^= 1;
@@ -686,16 +677,7 @@ isd_t alloc_isd(int n, int k, int r, int n1, int n2,
   if (!isd->A) return NULL;
 
   isd->perm = malloc(n * sizeof(int));
-  isd->bday_perm = malloc((k + DUMER_L) * sizeof(int));
-#if !(DUMER_LW) && !(DUMER_DOOM)
-  isd->syndrome_col = malloc(sizeof(int));
-#elif !(DUMER_LW) && DUMER_DOOM
-  isd->syndrome_col = malloc(k * sizeof(int));
-#endif
-#if !(DUMER_LW)
-  if (!isd->syndrome_col) return NULL;
-#endif
-  if (!isd->perm || !isd->bday_perm) return NULL;
+  if (!isd->perm) return NULL;
 
   isd->size_list1 = LIST_WIDTH * nb_combinations1;
   isd->list1 = malloc(isd->size_list1 / 8);
@@ -753,10 +735,6 @@ isd_t alloc_isd(int n, int k, int r, int n1, int n2,
 void free_isd(isd_t isd) {
   mzd_free(isd->A);
   free(isd->perm);
-  free(isd->bday_perm);
-#if !(DUMER_LW)
-  free(isd->syndrome_col);
-#endif
 
   free(isd->list1);
   free(isd->list1_idx);
@@ -790,7 +768,7 @@ void free_isd(isd_t isd) {
   free(isd);
 }
 
-void init_isd(isd_t isd, enum type current_type, int n, int k, int w, int left,
+void init_isd(isd_t isd, enum type current_type, int n, int k, int w,
               int *mat_h, int *mat_s) {
 #if DUMER_LW
   (void)w;
@@ -836,16 +814,6 @@ void init_isd(isd_t isd, enum type current_type, int n, int k, int w, int left,
   for (int i = 0; i < n; ++i) {
     isd->perm[i] = i;
   }
-  for (int i = 0; i < k + DUMER_L; ++i) {
-    isd->bday_perm[i] = i + left;
-  }
-#if !(DUMER_LW) && !(DUMER_DOOM)
-  *(isd->syndrome_col) = n;
-#elif !(DUMER_LW) && DUMER_DOOM
-  for (int i = 0; i < k; ++i) {
-    (isd->syndrome_col)[i] = n + i;
-  }
-#endif
 
   isd->solution = malloc(n * sizeof(uint8_t));
 #if DUMER_LW
@@ -856,61 +824,47 @@ void init_isd(isd_t isd, enum type current_type, int n, int k, int w, int left,
 }
 
 int dumer(int n, int k, int r, int n1, int n2, shr_t shr, isd_t isd) {
-  int ret = 0;
   /* Choose a random information set and do a Gaussian elimination. */
   choose_is(isd->A, isd->perm, n, k, DUMER_L, &isd->S0, &isd->S1);
 
-  int bday = 0;
-  goto first;
-  for (; bday < DUMER_BDAY; ++bday) {
-    fisher_yates(isd->bday_perm, k + DUMER_L, &isd->S0, &isd->S1);
+  get_columns_H_prime(isd->A, isd->columns1_low, n1 + DUMER_EPS, r, DUMER_L,
+                      r - DUMER_L);
 
-  first:
-    get_columns_H_prime(isd->A, isd->columns1_low, n1 + DUMER_EPS, r, DUMER_L,
-                        isd->bday_perm);
+  /*
+   * For the first list, we only keep the LIST_WIDTH least significant bits.
+   *
+   * The full column is then fully computed when there is a collision on the
+   * LIST_WIDTH least significant bits in list1 and in list2.
+   */
+  build_list(n1 + DUMER_EPS, DUMER_P1, isd, isd->columns1_low, isd->list1);
 
-    /*
-     * For the first list, we only keep the LIST_WIDTH least significant bits.
-     *
-     * The full column is then fully computed when there is a collision on the
-     * LIST_WIDTH least significant bits in list1 and in list2.
-     */
-    build_list(n1 + DUMER_EPS, DUMER_P1, isd, isd->columns1_low, isd->list1);
-
-    /* Keep the original index of an element of the list when sorting. */
-    for (uint64_t i = 0; i < shr->nb_combinations1; ++i) {
-      isd->list1_idx[i] = i;
-    }
-    sort_quick_sort_pair(isd->list1_idx, isd->list1, shr->nb_combinations1);
-#if (DUMER_LUT) > 0
-    /* The lookup table speeds up searching in the sorted list. */
-    build_lut(isd->list1, shr->nb_combinations1, isd->list1_lut);
-#endif
-
-    get_columns_H_prime_avx(isd->A, isd->columns1_full, n1 + DUMER_EPS, r, r,
-                            isd->bday_perm);
-    get_columns_H_prime_avx(isd->A, isd->columns2_full, n2 + DUMER_EPS, r, r,
-                            isd->bday_perm + n1 - DUMER_EPS);
-#if !(DUMER_LW) && !(DUMER_DOOM)
-    get_columns_H_prime_avx(isd->A, isd->s_full, 1, r, r, isd->syndrome_col);
-#elif !(DUMER_LW) && DUMER_DOOM
-    get_columns_H_prime_avx(isd->A, isd->s_full, r, r, r, isd->syndrome_col);
-#endif
-
-    /*
-     * As there is always at least one element matching the LIST_WIDTH least
-     * significant bits of an element of list2 in list1, the elements of list2
-     * are computed fully from the beginning.
-     *
-     * Using Chase's sequence, list2 is computed doing only one XOR per
-     * element.
-     */
-    if (find_collisions(n, r, n1, n2, shr, isd)) {
-      ret = 1;
-#if !(DUMER_LW)
-      break;
-#endif
-    }
+  /* Keep the original index of an element of the list when sorting. */
+  for (uint64_t i = 0; i < shr->nb_combinations1; ++i) {
+    isd->list1_idx[i] = i;
   }
-  return ret;
+  sort_quick_sort_pair(isd->list1_idx, isd->list1, shr->nb_combinations1);
+#if (DUMER_LUT) > 0
+  /* The lookup table speeds up searching in the sorted list. */
+  build_lut(isd->list1, shr->nb_combinations1, isd->list1_lut);
+#endif
+
+  get_columns_H_prime_avx(isd->A, isd->columns1_full, n1 + DUMER_EPS, r, r,
+                          r - DUMER_L);
+  get_columns_H_prime_avx(isd->A, isd->columns2_full, n2 + DUMER_EPS, r, r,
+                          r - DUMER_L + n1 - DUMER_EPS);
+#if !(DUMER_LW) && !(DUMER_DOOM)
+  get_columns_H_prime_avx(isd->A, isd->s_full, 1, r, r, n);
+#elif !(DUMER_LW) && DUMER_DOOM
+  get_columns_H_prime_avx(isd->A, isd->s_full, r, r, r, n);
+#endif
+
+  /*
+   * As there is always at least one element matching the LIST_WIDTH least
+   * significant bits of an element of list2 in list1, the elements of list2
+   * are computed fully from the beginning.
+   *
+   * Using Chase's sequence, list2 is computed doing only one XOR per
+   * element.
+   */
+  return find_collisions(n, r, n1, n2, shr, isd);
 }

@@ -21,12 +21,10 @@
 */
 #ifndef DUMER_H
 #define DUMER_H
-#include <stdint.h>
-
-#include <omp.h>
-
 #include <m4ri/config.h>
 #include <m4ri/m4ri.h>
+#include <omp.h>
+#include <stdint.h>
 
 #ifndef DUMER_L
 #define DUMER_L 16
@@ -41,9 +39,6 @@
 #endif
 #ifndef DUMER_DOOM
 #define DUMER_DOOM 0
-#endif
-#ifndef DUMER_BDAY
-#define DUMER_BDAY 0
 #endif
 #ifndef DUMER_LW
 #define DUMER_LW 0
@@ -103,10 +98,6 @@ struct isd {
   mzd_t *A;
 
   int *perm;
-  int *bday_perm;
-#if !(DUMER_LW)
-  int *syndrome_col;
-#endif
   /* Seeds for pseudo random number generator. */
   uint64_t S0;
   uint64_t S1;
@@ -158,7 +149,7 @@ void free_shr(shr_t shr);
 void init_shr(shr_t shr, int n1, int n2);
 isd_t alloc_isd(int n, int k, int r, int n1, int n2, uint64_t nb_combinations1);
 void free_isd(isd_t isd);
-void init_isd(isd_t isd, enum type current_type, int n, int k, int w, int left,
+void init_isd(isd_t isd, enum type current_type, int n, int k, int w,
               int *mat_h, int *mat_s);
 
 int dumer(int n, int k, int r, int n1, int n2, shr_t shr, isd_t isd);

@@ -348,13 +348,11 @@ int main(int argc, char *argv[]) {
   printf("l=%d ", DUMER_L);
   printf("p=%d ", DUMER_P);
   printf("epsilon=%d ", DUMER_EPS);
-  printf("iter_bday=%d ", DUMER_BDAY);
   printf("doom=%d\n", DUMER_DOOM);
 
   /* Birthday decoding */
   int n1 = (k + DUMER_L) / 2;
   int n2 = k + DUMER_L - n1;
-  int left = n - k - DUMER_L;
   if (DUMER_EPS > n2 || DUMER_EPS > n1) {
     fprintf(stderr, "Please lower DUMER_EPS.\n");
     exit(EXIT_FAILURE);
@@ -375,7 +373,7 @@ int main(int argc, char *argv[]) {
       fprintf(stderr, "Allocation error.\n");
       exit(EXIT_FAILURE);
     }
-    init_isd(isd, current_type, n, k, w, left, mat_h, mat_s);
+    init_isd(isd, current_type, n, k, w, mat_h, mat_s);
 
     while (1) {
       int found = dumer(n, k, r, n1, n2, shr, isd);
