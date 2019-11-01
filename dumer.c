@@ -142,9 +142,9 @@ static void fisher_yates(int *perm, rci_t n, uint64_t *S0, uint64_t *S1) {
 }
 
 /* Apply the same permutation to an M4RI matrix and an array. */
-static void fisher_yates_m4ri(mzd_t *A, int *perm, rci_t n, uint64_t *S0,
-                              uint64_t *S1) {
-  for (int i = 0; i < n - 1; ++i) {
+static void fisher_yates_m4ri(mzd_t *A, int *perm, rci_t n, size_t n_stop,
+                              uint64_t *S0, uint64_t *S1) {
+  for (size_t i = 0; i < n_stop; ++i) {
     uint32_t rand = i + random_lim(n - 1 - i, S0, S1);
     mzd_col_swap(A, i, rand);
     int swp = perm[i];
@@ -164,7 +164,7 @@ static void choose_is(mzd_t *A, int *perm, int n, int k, int l, uint64_t *S0,
    */
   int r = 0;
   while (r < n - k - l) {
-    fisher_yates_m4ri(A, perm, n, S0, S1);
+    fisher_yates_m4ri(A, perm, n, n - k - l, S0, S1);
     r = mzd_echelonize_m4ri(A, 1, 0);
   }
 }
