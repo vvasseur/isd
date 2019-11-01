@@ -254,7 +254,10 @@ static void build_list(unsigned n, unsigned p, isd_t isd,
     uint16_t syndrome = isd->stack_syndrome[stack_top];
     uint32_t max_val = isd->stack_maxval[stack_top];
 
-#if DUMER_L <= 16
+#if DUMER_L <= 8
+    xor_bcast_32(((uint32_t)syndrome << 24) | ((uint32_t)syndrome << 16) | ((uint32_t)syndrome << 8) | syndrome, (uint8_t *)columns,
+                 (uint8_t *)isd->scratch, AVX_PADDING(max_val * 8) / 256);
+#elif DUMER_L <= 16
     xor_bcast_32(((uint32_t)syndrome << 16) | syndrome, (uint8_t *)columns,
                  (uint8_t *)isd->scratch, AVX_PADDING(max_val * 16) / 256);
 #elif DUMER_L <= 32
