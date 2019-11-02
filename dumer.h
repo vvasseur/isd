@@ -27,15 +27,15 @@
 #include <stdint.h>
 
 #ifndef DUMER_L
-#define DUMER_L 16
+#define DUMER_L 16L
 #endif
 #ifndef DUMER_P
-#define DUMER_P 4
+#define DUMER_P 4L
 #endif
 #define DUMER_P1 (DUMER_P / 2)
 #define DUMER_P2 (DUMER_P - DUMER_P1)
 #ifndef DUMER_EPS
-#define DUMER_EPS 40
+#define DUMER_EPS 40L
 #endif
 #ifndef DUMER_DOOM
 #define DUMER_DOOM 0
@@ -44,7 +44,7 @@
 #define DUMER_LW 0
 #endif
 #ifndef DUMER_LUT
-#define DUMER_LUT 11
+#define DUMER_LUT 11L
 #endif
 #if (DUMER_LUT) > (DUMER_L)
 #undef DUMER_LUT
@@ -94,14 +94,14 @@ struct shared {
 
 #if DUMER_LW
   omp_lock_t w_best_lock;
-  int w_best;
+  size_t w_best;
 #endif
 };
 
 struct isd {
   mzd_t *A;
 
-  int *perm;
+  size_t *perm;
   /* Seeds for pseudo random number generator. */
   uint64_t S0;
   uint64_t S1;
@@ -124,8 +124,8 @@ struct isd {
   uint64_t *s_full;
 #endif
 
-  int w_target;
-  int w_solution;
+  size_t w_target;
+  size_t w_solution;
   uint8_t *solution;
 
   /* Avoid mallocing and freeing all the time. */
@@ -145,14 +145,16 @@ struct isd {
 typedef struct isd *isd_t;
 typedef struct shared *shr_t;
 
-shr_t alloc_shr(int n1, int n2);
+shr_t alloc_shr(size_t n1, size_t n2);
 void free_shr(shr_t shr);
-void init_shr(shr_t shr, int n1, int n2);
-isd_t alloc_isd(int n, int k, int r, int n1, int n2, uint64_t nb_combinations1);
+void init_shr(shr_t shr, size_t n1, size_t n2);
+isd_t alloc_isd(size_t n, size_t k, size_t r, size_t n1, size_t n2,
+                uint64_t nb_combinations1);
 void free_isd(isd_t isd);
-void init_isd(isd_t isd, enum type current_type, int n, int k, int w,
-              int *mat_h, int *mat_s);
+void init_isd(isd_t isd, enum type current_type, size_t n, size_t k, size_t w,
+              uint8_t *mat_h, uint8_t *mat_s);
 
-int dumer(int n, int k, int r, int n1, int n2, shr_t shr, isd_t isd);
-void print_solution(int n, isd_t isd);
+size_t dumer(size_t n, size_t k, size_t r, size_t n1, size_t n2, shr_t shr,
+             isd_t isd);
+void print_solution(size_t n, isd_t isd);
 #endif /* DUMER_H */

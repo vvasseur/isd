@@ -32,7 +32,7 @@ static void skip_comment(FILE *file, int *c) {
   if (*c == '\n') *c = getc(file);
 }
 
-static int read_int(FILE *file, int *c, int *n) {
+static int read_int(FILE *file, int *c, size_t *n) {
   if (*c == EOF) return 0;
   while (*c != EOF && *c != '\n') {
     if (*c >= '0' && *c <= '9') {
@@ -45,7 +45,7 @@ static int read_int(FILE *file, int *c, int *n) {
   return 1;
 }
 
-static int read_bin_vector(FILE *file, int *c, int *m, int *len) {
+static int read_bin_vector(FILE *file, int *c, uint8_t *m, size_t *len) {
   if (*c == EOF) return 0;
   *len = 0;
   while (*c != EOF && *c != '\n') {
@@ -58,7 +58,8 @@ static int read_bin_vector(FILE *file, int *c, int *m, int *len) {
   return 1;
 }
 
-static int read_bin_matrix(FILE *file, int rows, int *c, int *m, int *len) {
+static int read_bin_matrix(FILE *file, int rows, int *c, uint8_t *m,
+                           size_t *len) {
   if (*c == EOF) return 0;
   *len = 0;
   while (*c != EOF) {
@@ -75,13 +76,14 @@ static int read_bin_matrix(FILE *file, int rows, int *c, int *m, int *len) {
   return 1;
 }
 
-static int parse_input_sd(char *filename, int *n, int *k, int *w, int **mat_h,
-                          int *len_h, int **mat_s, int *len_s) {
+static int parse_input_sd(char *filename, size_t *n, size_t *k, size_t *w,
+                          uint8_t **mat_h, size_t *len_h, uint8_t **mat_s,
+                          size_t *len_s) {
   int ret = 0;
   *n = 0;
   *k = 0;
   *w = 0;
-  int seed = 0;
+  size_t seed = 0;
   int c;
   FILE *file;
   file = fopen(filename, "r");
@@ -102,7 +104,7 @@ static int parse_input_sd(char *filename, int *n, int *k, int *w, int **mat_h,
     /* Read w. */
     if (!read_int(file, &c, w)) goto end;
 
-    *mat_h = malloc(*k * *k * sizeof(int));
+    *mat_h = malloc(*k * *k * sizeof(uint8_t));
 
     if (!mat_h) goto end;
 
@@ -111,7 +113,7 @@ static int parse_input_sd(char *filename, int *n, int *k, int *w, int **mat_h,
     /* Read h. */
     if (!read_bin_matrix(file, *k, &c, *mat_h, len_h)) goto end;
 
-    *mat_s = malloc(*k * sizeof(int));
+    *mat_s = malloc(*k * sizeof(uint8_t));
 
     if (!mat_s) goto end;
 
@@ -129,8 +131,9 @@ end:
   return ret;
 }
 
-static int parse_input_go(char *filename, int *n, int *k, int *w, int **mat_h,
-                          int *len_h, int **mat_s, int *len_s) {
+static int parse_input_go(char *filename, size_t *n, size_t *k, size_t *w,
+                          uint8_t **mat_h, size_t *len_h, uint8_t **mat_s,
+                          size_t *len_s) {
   int ret = 0;
   *n = 0;
   *k = 0;
@@ -154,7 +157,7 @@ static int parse_input_go(char *filename, int *n, int *k, int *w, int **mat_h,
     /* Read w. */
     if (!read_int(file, &c, w)) goto end;
 
-    *mat_h = malloc(*n * *k * sizeof(int));
+    *mat_h = malloc(*n * *k * sizeof(uint8_t));
 
     if (!mat_h) goto end;
 
@@ -163,7 +166,7 @@ static int parse_input_go(char *filename, int *n, int *k, int *w, int **mat_h,
     /* Read h. */
     if (!read_bin_matrix(file, *k, &c, *mat_h, len_h)) goto end;
 
-    *mat_s = malloc((*n - *k) * sizeof(int));
+    *mat_s = malloc((*n - *k) * sizeof(uint8_t));
 
     if (!mat_s) goto end;
 
@@ -181,8 +184,9 @@ end:
   return ret;
 }
 
-static int parse_input_qc(char *filename, int *n, int *k, int *w, int **mat_h,
-                          int *len_h, int **mat_s, int *len_s) {
+static int parse_input_qc(char *filename, size_t *n, size_t *k, size_t *w,
+                          uint8_t **mat_h, size_t *len_h, uint8_t **mat_s,
+                          size_t *len_s) {
   int ret = 0;
   *n = 0;
   *k = 0;
@@ -202,7 +206,7 @@ static int parse_input_qc(char *filename, int *n, int *k, int *w, int **mat_h,
     /* Read w. */
     if (!read_int(file, &c, w)) goto end;
 
-    *mat_h = malloc(*k * sizeof(int));
+    *mat_h = malloc(*k * sizeof(uint8_t));
 
     if (!mat_h) goto end;
 
@@ -211,7 +215,7 @@ static int parse_input_qc(char *filename, int *n, int *k, int *w, int **mat_h,
     /* Read h. */
     if (!read_bin_vector(file, &c, *mat_h, len_h)) goto end;
 
-    *mat_s = malloc(*k * sizeof(int));
+    *mat_s = malloc(*k * sizeof(uint8_t));
 
     if (!mat_s) goto end;
 
@@ -229,13 +233,13 @@ end:
   return ret;
 }
 
-static int parse_input_lw(char *filename, int *n, int *k, int *w, int **mat_h,
-                          int *len_h) {
+static int parse_input_lw(char *filename, size_t *n, size_t *k, size_t *w,
+                          uint8_t **mat_h, size_t *len_h) {
   int ret = 0;
   *n = 0;
   *k = 0;
   *w = 0;
-  int seed = 0;
+  size_t seed = 0;
   int c;
   FILE *file;
   file = fopen(filename, "r");
@@ -251,7 +255,7 @@ static int parse_input_lw(char *filename, int *n, int *k, int *w, int **mat_h,
     /* Read seed. */
     if (!read_int(file, &c, &seed)) goto end;
 
-    *mat_h = malloc(*k * *k * sizeof(int));
+    *mat_h = malloc(*k * *k * sizeof(uint8_t));
 
     if (!mat_h) goto end;
 
@@ -318,9 +322,9 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  int n, k, w;
-  int *mat_h, *mat_s;
-  int len_h, len_s;
+  size_t n, k, w;
+  uint8_t *mat_h, *mat_s;
+  size_t len_h, len_s;
 
   int parsed;
   if (current_type == QC)
@@ -340,19 +344,19 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  int r = n - k;
+  size_t r = n - k;
 
-  printf("n=%d ", n);
-  printf("k=%d ", k);
-  printf("w=%d\n", w);
-  printf("l=%d ", DUMER_L);
-  printf("p=%d ", DUMER_P);
-  printf("epsilon=%d ", DUMER_EPS);
+  printf("n=%ld ", n);
+  printf("k=%ld ", k);
+  printf("w=%ld\n", w);
+  printf("l=%ld ", DUMER_L);
+  printf("p=%ld ", DUMER_P);
+  printf("epsilon=%ld ", DUMER_EPS);
   printf("doom=%d\n", DUMER_DOOM);
 
   /* Birthday decoding */
-  int n1 = (k + DUMER_L) / 2;
-  int n2 = k + DUMER_L - n1;
+  size_t n1 = (k + DUMER_L) / 2;
+  size_t n2 = k + DUMER_L - n1;
   if (DUMER_EPS > n2 || DUMER_EPS > n1) {
     fprintf(stderr, "Please lower DUMER_EPS.\n");
     exit(EXIT_FAILURE);
