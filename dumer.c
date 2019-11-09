@@ -162,12 +162,12 @@ static void choose_is(mzd_t *A, size_t *perm, size_t n, size_t k, size_t l,
 /* Extract columns from *A and keep data 32-byte aligned (fitting AVX
  * registers). */
 static void get_columns_H_prime_avx(mzd_t *A, uint64_t *columns, size_t n,
-                                    size_t r, size_t l, size_t off) {
+                                    size_t r, size_t off) {
   size_t pos_byte = 0;
   size_t pos_bit = 0;
   columns[pos_byte] = 0;
   for (size_t j = 0; j < n; ++j) {
-    for (size_t i = 0; i < l; ++i) {
+    for (size_t i = 0; i < r; ++i) {
       columns[pos_byte] |=
           (mzd_read_bit(A, r - 1 - i, j + off) ? (1L << pos_bit) : 0);
       if (++pos_bit == 64) {
@@ -937,14 +937,14 @@ size_t dumer(size_t n, size_t k, size_t r, size_t n1, size_t n2, shr_t shr,
   build_lut(isd->list1, shr->nb_combinations1, isd->list1_lut);
 #endif
 
-  get_columns_H_prime_avx(isd->A, isd->columns1_full, n1 + DUMER_EPS, r, r,
+  get_columns_H_prime_avx(isd->A, isd->columns1_full, n1 + DUMER_EPS, r,
                           r - DUMER_L);
-  get_columns_H_prime_avx(isd->A, isd->columns2_full, n2 + DUMER_EPS, r, r,
+  get_columns_H_prime_avx(isd->A, isd->columns2_full, n2 + DUMER_EPS, r,
                           r - DUMER_L + n1 - DUMER_EPS);
 #if !(DUMER_LW) && !(DUMER_DOOM)
-  get_columns_H_prime_avx(isd->A, isd->s_full, 1, r, r, n);
+  get_columns_H_prime_avx(isd->A, isd->s_full, 1, r, n);
 #elif !(DUMER_LW) && DUMER_DOOM
-    get_columns_H_prime_avx(isd->A, isd->s_full, r, r, r, n);
+    get_columns_H_prime_avx(isd->A, isd->s_full, r, r, n);
 #endif
 
   /*
