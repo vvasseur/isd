@@ -785,15 +785,15 @@ isd_t alloc_isd(size_t n, size_t k, size_t r, size_t n1, size_t n2,
 
   isd->size_columns1_full = AVX_PADDING(r) * (n1 + DUMER_EPS);
   isd->size_columns2_full = AVX_PADDING(r) * (n2 + DUMER_EPS);
-  isd->columns1_full = aligned_alloc(32, isd->size_columns1_full / 8 + 32);
-  isd->columns2_full = aligned_alloc(32, isd->size_columns2_full / 8 + 32);
+  isd->columns1_full = aligned_alloc(32, isd->size_columns1_full / 8);
+  isd->columns2_full = aligned_alloc(32, isd->size_columns2_full / 8);
   if (!isd->columns1_full || !isd->columns2_full) return NULL;
 
 #if !(DUMER_LW) && !(DUMER_DOOM)
-  isd->s_full = aligned_alloc(32, AVX_PADDING(r) / 8 + 32);
+  isd->s_full = aligned_alloc(32, AVX_PADDING(r) / 8);
   if (!isd->s_full) return NULL;
 #elif !(DUMER_LW) && DUMER_DOOM
-    isd->s_full = aligned_alloc(32, k * AVX_PADDING(r) / 8 + 32);
+    isd->s_full = aligned_alloc(32, k * AVX_PADDING(r) / 8);
     if (!isd->s_full) return NULL;
 #endif
 
