@@ -490,7 +490,7 @@ static void build_solution(size_t n, size_t r, size_t n1, shr_t shr, isd_t isd,
 
 void print_solution(size_t n, isd_t isd) {
 #if DUMER_LW
-  printf("%d: ", isd->w_solution);
+  printf("%ld: ", isd->w_solution);
 #endif
   for (size_t i = 0; i < n; ++i) {
     printf("%d", isd->solution[i]);
