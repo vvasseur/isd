@@ -108,7 +108,9 @@ struct isd {
 
   size_t size_list1;
   LIST_TYPE *list1;
+  LIST_TYPE *list1_aux;
   size_t *list1_idx;
+  size_t *list1_aux2;
   size_t *list1_lut;
 
   size_t size_columns1_low;

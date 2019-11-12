@@ -27,7 +27,6 @@
 #include "dumer.h"
 #include "xoroshiro128plus.h"
 
-#define SORT_NAME sort
 #include "sort.h"
 
 /* Binomial coefficient. */
@@ -775,9 +774,13 @@ isd_t alloc_isd(size_t n, size_t k, size_t r, size_t n1, size_t n2,
 
   isd->size_list1 = LIST_WIDTH * nb_combinations1;
   isd->list1 = malloc(isd->size_list1 / 8);
+  isd->list1_aux = malloc(isd->size_list1 / 8);
   isd->list1_idx = malloc(nb_combinations1 * sizeof(size_t));
+  isd->list1_aux2 = malloc(nb_combinations1 * sizeof(size_t));
   isd->list1_lut = malloc(((1 << DUMER_LUT) + 1) * sizeof(size_t));
-  if (!isd->list1 || !isd->list1_idx || !isd->list1_lut) return NULL;
+  if (!isd->list1 || !isd->list1_aux || !isd->list1_idx || !isd->list1_aux2 ||
+      !isd->list1_lut)
+    return NULL;
 
   isd->size_columns1_low = AVX_PADDING(LIST_WIDTH * (n1 + DUMER_EPS));
   isd->columns1_low = aligned_alloc(32, isd->size_columns1_low / 8);
@@ -828,7 +831,9 @@ void free_isd(isd_t isd) {
   free(isd->perm);
 
   free(isd->list1);
+  free(isd->list1_aux);
   free(isd->list1_idx);
+  free(isd->list1_aux2);
 
   free(isd->columns1_low);
 
@@ -931,7 +936,8 @@ size_t dumer(size_t n, size_t k, size_t r, size_t n1, size_t n2, shr_t shr,
   for (uint64_t i = 0; i < shr->nb_combinations1; ++i) {
     isd->list1_idx[i] = i;
   }
-  sort_quick_sort_pair(isd->list1_idx, isd->list1, shr->nb_combinations1);
+  sort(isd->list1, isd->list1_idx, isd->list1_aux, isd->list1_aux2,
+       shr->nb_combinations1);
 #if (DUMER_LUT) > 0
   /* The lookup table speeds up searching in the sorted list. */
   build_lut(isd->list1, shr->nb_combinations1, isd->list1_lut);
