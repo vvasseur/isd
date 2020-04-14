@@ -761,9 +761,11 @@ isd_t alloc_isd(size_t n, size_t k, size_t r, size_t n1, size_t n2,
   isd_t isd = malloc(sizeof(struct isd));
 
 #if DUMER_LW
+  (void)(k);
   isd->A = mzd_init(r, n);
 #elif !(DUMER_DOOM)  // && !(DUMER_LW)
-    isd->A = mzd_init(r, n + 1);
+  (void)(k);
+  isd->A = mzd_init(r, n + 1);
 #else                // DUMER_DOOM && !(DUMER_LW)
   isd->A = mzd_init(r, n + k);
 #endif
