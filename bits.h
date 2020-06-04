@@ -30,6 +30,8 @@
 #define AVX_PADDING(len) (((len + 255) / 256) * 256)
 
 uint64_t popcount(const uint64_t *buf, unsigned len, unsigned max);
+unsigned clb(unsigned long x);
+unsigned flb(unsigned long x);
 
 void xor_avx1(uint8_t *x, uint8_t *y, uint8_t *z, unsigned n);
 void xor_avx2(uint8_t *x, uint8_t *y1, uint8_t *y2, uint8_t *z, unsigned n);

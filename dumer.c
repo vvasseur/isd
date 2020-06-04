@@ -19,15 +19,17 @@
    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
    IN THE SOFTWARE
 */
+#include "dumer.h"
+
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "bits.h"
-#include "dumer.h"
-#include "xoroshiro128plus.h"
-
+#include "light_m4ri/matrix.h"
 #include "sort.h"
+#include "xoroshiro128plus.h"
 
 /* Binomial coefficient. */
 uint64_t bincoef(size_t n, size_t k) {
@@ -130,12 +132,12 @@ exit:
   free(z);
 }
 
-/* Apply the same permutation to an M4RI matrix and an array. */
-static void fisher_yates_m4ri(mzd_t *A, size_t *perm, rci_t n, size_t n_stop,
-                              uint64_t *S0, uint64_t *S1) {
+/* Apply the same permutation to a matrix and an array. */
+static void fisher_yates_matrix(matrix_t A, size_t rows, size_t *perm, size_t n,
+                                size_t n_stop, uint64_t *S0, uint64_t *S1) {
   for (size_t i = 0; i < n_stop; ++i) {
     uint32_t rand = i + random_lim(n - 1 - i, S0, S1);
-    mzd_col_swap(A, i, rand);
+    matrix_swap_cols(A, i, rand, rows);
     size_t swp = perm[i];
     perm[i] = perm[rand];
     perm[rand] = swp;
@@ -143,74 +145,87 @@ static void fisher_yates_m4ri(mzd_t *A, size_t *perm, rci_t n, size_t n_stop,
 }
 
 /* Randomly choose an information set and perform a Gaussian elimination. */
-static void choose_is(mzd_t *A, size_t *perm, size_t n, size_t k, size_t l,
+static void choose_is(matrix_t A, size_t *perm, size_t n, size_t k, size_t l,
+                      size_t k_opt, int **rev, int **diff, uint64_t *xor_rows,
                       uint64_t *S0, uint64_t *S1) {
-  /*
-   * Pick a permutation and perform Gaussian elimination.
-   *
-   * M4RI tries to do a full Gaussian elimination. But as long as the rank is
-   * above or equal to n - k - l the permutation is usable.
-   */
+  /* Pick a permutation and perform Gaussian elimination.  */
   size_t r = 0;
   while (r < n - k - l) {
-    fisher_yates_m4ri(A, perm, n, n - k - l, S0, S1);
-    r = mzd_echelonize_m4ri(A, 1, 0);
+    fisher_yates_matrix(A, n - k, perm, n, n - k - l, S0, S1);
+    r = matrix_echelonize_partial(A, n - k, n, k_opt, n - k - l, xor_rows, rev,
+                                  diff);
   }
 }
 
 /* Extract columns from *A and keep data 32-byte aligned (fitting AVX
  * registers). */
-static void get_columns_H_prime_avx(mzd_t *A, uint64_t *columns, size_t n,
+static void get_columns_H_prime_avx(matrix_t A, uint64_t *columns, size_t n,
                                     size_t r, size_t off) {
-  size_t pos_byte = 0;
-  size_t pos_bit = 0;
-  columns[pos_byte] = 0;
-  for (size_t j = 0; j < n; ++j) {
-    for (size_t i = 0; i < r; ++i) {
-      columns[pos_byte] |=
-          (mzd_read_bit(A, r - 1 - i, j + off) ? (1L << pos_bit) : 0);
-      if (++pos_bit == 64) {
-        pos_bit = 0;
-        columns[++pos_byte] = 0;
+  size_t stride = AVX_PADDING(r) / 64;
+  memset(columns, 0, stride * n * sizeof(uint64_t));
+
+  size_t iword = 0;
+  size_t ibit = 0;
+  uint64_t mask_out = 1L;
+
+  for (size_t i = 0; i < r; ++i) {
+    size_t jword = off / WORD_SIZE;
+    size_t jbit = off % WORD_SIZE;
+    uint64_t mask_in = 1L << jbit;
+    uint64_t *curr_columns = columns + iword;
+    for (size_t j = 0; j < n; ++j) {
+      word_t bit = A[r - 1 - i][jword] & mask_in;
+      if (bit) *curr_columns |= mask_out;
+      ++jbit;
+      if (jbit == WORD_SIZE) {
+        mask_in = 1L;
+        jbit = 0;
+        ++jword;
+      } else {
+        mask_in <<= 1;
       }
+      curr_columns += stride;
     }
-    if (pos_bit != 0) {
-      pos_bit = 0;
-      columns[++pos_byte] = 0;
-    }
-    size_t pad = (4 - pos_byte % 4) % 4;
-    while (pad--) {
-      columns[++pos_byte] = 0;
+    ++ibit;
+    mask_out <<= 1;
+    if (ibit == 64) {
+      mask_out = 1L;
+      ibit = 0;
+      ++iword;
     }
   }
 }
 
 /* Extract columns from *A and keep data LIST_WIDTH-byte aligned. */
-static void get_columns_H_prime(mzd_t *A, LIST_TYPE *columns, size_t n,
-                                size_t r, size_t l, size_t off) {
-  size_t pos_word = 0;
-  size_t pos_bit = 0;
-  columns[pos_word] = 0;
-  for (size_t j = 0; j < n; ++j) {
-    for (size_t i = 0; i < l; ++i) {
-      columns[pos_word] |=
-          (mzd_read_bit(A, r - 1 - i, j + off) ? (1L << pos_bit) : 0);
-      if (++pos_bit == LIST_WIDTH) {
-        pos_bit = 0;
-        columns[++pos_word] = 0;
-      }
-    }
-    if (pos_bit != 0) {
-      pos_bit = 0;
-      columns[++pos_word] = 0;
-    }
-  }
-}
+static void get_columns_H_prime(matrix_t A, LIST_TYPE *columns, size_t n,
+                                size_t r, size_t off) {
+  memset(columns, 0, n * sizeof(LIST_TYPE));
 
-/* ceil(log2(x)) */
-static unsigned lb(unsigned long x) {
-  if (x <= 1) return 0;
-  return (8 * sizeof(unsigned long)) - __builtin_clzl(x - 1);
+  size_t iword = 0;
+  size_t ibit = 0;
+  LIST_TYPE mask_out = 1L;
+
+  for (size_t i = 0; i < DUMER_L; ++i) {
+    size_t jword = off / WORD_SIZE;
+    size_t jbit = off % WORD_SIZE;
+    uint64_t mask_in = 1L << jbit;
+    LIST_TYPE *curr_columns = columns + iword;
+    for (size_t j = 0; j < n; ++j) {
+      word_t bit = A[r - 1 - i][jword] & mask_in;
+      if (bit) *curr_columns |= mask_out;
+      jbit++;
+      if (jbit == WORD_SIZE) {
+        mask_in = 1L;
+        jbit = 0;
+        ++jword;
+      } else {
+        mask_in <<= 1;
+      }
+      ++curr_columns;
+    }
+    ++ibit;
+    mask_out <<= 1;
+  }
 }
 
 /*
@@ -220,7 +235,7 @@ static unsigned lb(unsigned long x) {
 static size_t bin_search(const LIST_TYPE *list, size_t len_list,
                          LIST_TYPE value) {
   if (len_list <= 1) return 0;
-  unsigned log = lb(len_list) - 1;
+  unsigned log = clb(len_list) - 1;
   size_t first_mid = len_list - (1UL << log);
   const LIST_TYPE *low = (list[first_mid] < value) ? list + first_mid : list;
   len_list = 1UL << log;
@@ -499,9 +514,7 @@ void print_solution(size_t n, isd_t isd) {
   fflush(stdout);
 }
 
-static int find_collisions(size_t n, size_t r, size_t n1, size_t n2, shr_t shr,
-                           isd_t isd) {
-  int ret = 0;
+static void xor_pairs(size_t r, size_t n2, isd_t isd) {
   size_t r_padded_bits = AVX_PADDING(r);
   size_t r_padded_qword = r_padded_bits / 64;
   size_t r_padded_ymm = r_padded_bits / 256;
@@ -520,11 +533,15 @@ static int find_collisions(size_t n, size_t r, size_t n1, size_t n2, shr_t shr,
              (uint8_t *)&isd->xor_pairs[xor_pairs_pos++ * r_padded_qword],
              r_padded_ymm);
   }
-#if DUMER_L == 64
-  uint64_t mask = ~0UL;
-#else
-    uint64_t mask = (uint64_t)((1UL << DUMER_L) - 1);
-#endif
+}
+
+static int find_collisions(size_t n, size_t r, size_t n1, shr_t shr,
+                           isd_t isd) {
+  int ret = 0;
+
+  size_t r_padded_bits = AVX_PADDING(r);
+  size_t r_padded_qword = r_padded_bits / 64;
+  size_t r_padded_ymm = r_padded_bits / 256;
 
 #if !(DUMER_DOOM) && !(DUMER_LW)
 #if DUMER_P2 == 2
@@ -610,7 +627,7 @@ static int find_collisions(size_t n, size_t r, size_t n1, size_t n2, shr_t shr,
                  (uint8_t *)isd->current_syndrome, r_padded_ymm);
 #endif
 
-    LIST_TYPE s_low = ((LIST_TYPE *)isd->current_syndrome)[0] & mask;
+    LIST_TYPE s_low = ((LIST_TYPE *)isd->current_syndrome)[0] & DUMER_L_MASK;
 
 #if (DUMER_LUT) > 0
     size_t idx_lut = isd->list1_lut[s_low >> DUMER_LUT_SHIFT];
@@ -730,6 +747,8 @@ shr_t alloc_shr(size_t n1, size_t n2) {
   shr->w_best = INT_MAX;
 #endif
 
+  matrix_alloc_gray_code(&shr->gray_rev, &shr->gray_diff);
+
   return shr;
 }
 
@@ -740,10 +759,12 @@ void free_shr(shr_t shr) {
 #if DUMER_LW
   omp_destroy_lock(&shr->w_best_lock);
 #endif
+
+  matrix_free_gray_code(shr->gray_rev, shr->gray_diff);
   free(shr);
 }
 
-void init_shr(shr_t shr, size_t n1, size_t n2) {
+void init_shr(shr_t shr, size_t n, size_t k, size_t n1, size_t n2) {
   /*
    * Precompute Chase's sequence.
    *
@@ -754,20 +775,26 @@ void init_shr(shr_t shr, size_t n1, size_t n2) {
   chase(n2 + DUMER_EPS, DUMER_P2, shr->combinations2, shr->combinations2_diff);
 
   build_list_pos(n1 + DUMER_EPS, shr->list1_pos);
+
+  matrix_build_gray_code(shr->gray_rev, shr->gray_diff);
+  shr->k_opt = matrix_opt_k(n - k, n);
 }
 
 isd_t alloc_isd(size_t n, size_t k, size_t r, size_t n1, size_t n2,
-                uint64_t nb_combinations1) {
+                uint64_t nb_combinations1, size_t k_opt) {
   isd_t isd = malloc(sizeof(struct isd));
 
 #if DUMER_LW
   (void)(k);
-  isd->A = mzd_init(r, n);
+  isd->A = matrix_alloc(r, n);
+  matrix_reset(isd->A, r, n);
 #elif !(DUMER_DOOM)  // && !(DUMER_LW)
   (void)(k);
-  isd->A = mzd_init(r, n + 1);
+  isd->A = matrix_alloc(r, n + 1);
+  matrix_reset(isd->A, r, n + 1);
 #else                // DUMER_DOOM && !(DUMER_LW)
-  isd->A = mzd_init(r, n + k);
+  isd->A = matrix_alloc(r, n + k);
+  matrix_reset(isd->A, r, n + k);
 #endif
   if (!isd->A) return NULL;
 
@@ -819,23 +846,27 @@ isd_t alloc_isd(size_t n, size_t k, size_t r, size_t n1, size_t n2,
   isd->xor_pairs = aligned_alloc(
       32, (2 * (n2 + DUMER_EPS) - 3) * r_padded_qword * sizeof(uint64_t));
 
+  isd->xor_rows =
+      aligned_alloc(32, (1L << k_opt) * AVX_PADDING(n) / 64 * sizeof(uint64_t));
+
   isd->scratch = aligned_alloc(
       32, DUMER_P1 * AVX_PADDING((n1 + DUMER_EPS) * LIST_WIDTH) / 8);
   if (!isd->test_syndrome || !isd->current_syndrome || !isd->xor_pairs ||
-      !isd->scratch)
+      !isd->xor_rows || !isd->scratch)
     return NULL;
 
   return isd;
 }
 
-void free_isd(isd_t isd) {
-  mzd_free(isd->A);
+void free_isd(isd_t isd, size_t r) {
+  matrix_free(isd->A, r);
   free(isd->perm);
 
   free(isd->list1);
   free(isd->list1_aux);
   free(isd->list1_idx);
   free(isd->list1_aux2);
+  free(isd->list1_lut);
 
   free(isd->columns1_low);
 
@@ -859,6 +890,7 @@ void free_isd(isd_t isd) {
   free(isd->current_syndrome);
 #endif
   free(isd->xor_pairs);
+  free(isd->xor_rows);
 
   free(isd);
 }
@@ -873,18 +905,21 @@ void init_isd(isd_t isd, enum type current_type, size_t n, size_t k, size_t w,
 
   /* Build the M4RI matrix. */
   for (size_t i = 0; i < n - k; ++i) {
-    mzd_write_bit(isd->A, i, i, 1);
+    isd->A[i][i / WORD_SIZE] |= 1UL << (i % WORD_SIZE);
   }
   if (current_type == QC) {
     for (size_t j = 0; j < k; ++j) {
       for (size_t i = 0; i < n - k; ++i) {
-        mzd_write_bit(isd->A, i, k + j, mat_h[(i - j + k) % k]);
+        if (mat_h[(i - j + k) % k])
+          isd->A[i][(k + j) / WORD_SIZE] |= 1L << ((k + j) % WORD_SIZE);
       }
     }
   } else if (current_type == SD || current_type == LW || current_type == GO) {
     for (size_t j = 0; j < k; ++j) {
       for (size_t i = 0; i < n - k; ++i) {
-        mzd_write_bit(isd->A, i, n - k + j, mat_h[i + (n - k) * j]);
+        if (mat_h[i + (n - k) * j])
+          isd->A[i][(n - k + j) / WORD_SIZE] |= 1UL
+                                                << ((n - k + j) % WORD_SIZE);
       }
     }
   }
@@ -892,7 +927,7 @@ void init_isd(isd_t isd, enum type current_type, size_t n, size_t k, size_t w,
   /* Matrix A is extended with the syndrome(s). */
 #if !(DUMER_LW) && !(DUMER_DOOM)
   for (size_t i = 0; i < n - k; ++i) {
-    mzd_write_bit(isd->A, i, n, mat_s[i]);
+    if (mat_s[i]) isd->A[i][n / WORD_SIZE] |= 1L << (n % WORD_SIZE);
   }
 #elif !(DUMER_LW) && DUMER_DOOM
     /*
@@ -901,7 +936,8 @@ void init_isd(isd_t isd, enum type current_type, size_t n, size_t k, size_t w,
      */
     for (size_t j = 0; j < k; ++j) {
       for (size_t i = 0; i < n - k; ++i) {
-        mzd_write_bit(isd->A, i, n + j, mat_s[(i - j + k) % k]);
+        if (mat_s[(i - j + k) % k])
+          isd->A[i][(n + j) / WORD_SIZE] |= 1L << ((n + j) % WORD_SIZE);
       }
     }
 #endif
@@ -918,12 +954,13 @@ void init_isd(isd_t isd, enum type current_type, size_t n, size_t k, size_t w,
 #endif
 }
 
-size_t dumer(size_t n, size_t k, size_t r, size_t n1, size_t n2, shr_t shr,
-             isd_t isd) {
+int dumer(size_t n, size_t k, size_t r, size_t n1, size_t n2, shr_t shr,
+          isd_t isd) {
   /* Choose a random information set and do a Gaussian elimination. */
-  choose_is(isd->A, isd->perm, n, k, DUMER_L, &isd->S0, &isd->S1);
+  choose_is(isd->A, isd->perm, n, k, DUMER_L, shr->k_opt, shr->gray_rev,
+            shr->gray_diff, isd->xor_rows, &isd->S0, &isd->S1);
 
-  get_columns_H_prime(isd->A, isd->columns1_low, n1 + DUMER_EPS, r, DUMER_L,
+  get_columns_H_prime(isd->A, isd->columns1_low, n1 + DUMER_EPS, r,
                       r - DUMER_L);
 
   /*
@@ -954,6 +991,7 @@ size_t dumer(size_t n, size_t k, size_t r, size_t n1, size_t n2, shr_t shr,
 #elif !(DUMER_LW) && DUMER_DOOM
     get_columns_H_prime_avx(isd->A, isd->s_full, r, r, n);
 #endif
+  xor_pairs(r, n2, isd);
 
   /*
    * As there is always at least one element matching the LIST_WIDTH least
@@ -963,5 +1001,5 @@ size_t dumer(size_t n, size_t k, size_t r, size_t n1, size_t n2, shr_t shr,
    * Using Chase's sequence, list2 is computed doing only one XOR per
    * element.
    */
-  return find_collisions(n, r, n1, n2, shr, isd);
+  return find_collisions(n, r, n1, shr, isd);
 }

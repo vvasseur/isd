@@ -21,10 +21,9 @@
 */
 #ifndef DUMER_H
 #define DUMER_H
-#include <m4ri/config.h>
-#include <m4ri/m4ri.h>
 #include <omp.h>
-#include <stdint.h>
+
+#include "light_m4ri/matrix.h"
 
 #ifndef DUMER_L
 #define DUMER_L 16L
@@ -80,6 +79,11 @@
 #define LIST_TYPE uint64_t
 #define SORT_TYPE uint64_t
 #endif
+#if DUMER_L == 64
+#define DUMER_L_MASK (~0UL)
+#else
+#define DUMER_L_MASK ((uint64_t)((1UL << DUMER_L) - 1))
+#endif
 
 enum type { QC, SD, LW, GO };
 
@@ -96,10 +100,13 @@ struct shared {
   omp_lock_t w_best_lock;
   size_t w_best;
 #endif
+  int **gray_rev;
+  int **gray_diff;
+  size_t k_opt;
 };
 
 struct isd {
-  mzd_t *A;
+  matrix_t A;
 
   size_t *perm;
   /* Seeds for pseudo random number generator. */
@@ -142,6 +149,8 @@ struct isd {
 #endif
   uint64_t *current_syndrome;
   uint64_t *xor_pairs;
+
+  uint64_t *xor_rows;
 };
 
 typedef struct isd *isd_t;
@@ -149,14 +158,14 @@ typedef struct shared *shr_t;
 
 shr_t alloc_shr(size_t n1, size_t n2);
 void free_shr(shr_t shr);
-void init_shr(shr_t shr, size_t n1, size_t n2);
+void init_shr(shr_t shr, size_t n, size_t k, size_t n1, size_t n2);
 isd_t alloc_isd(size_t n, size_t k, size_t r, size_t n1, size_t n2,
-                uint64_t nb_combinations1);
-void free_isd(isd_t isd);
+                uint64_t nb_combinations1, size_t k_opt);
+void free_isd(isd_t isd, size_t r);
 void init_isd(isd_t isd, enum type current_type, size_t n, size_t k, size_t w,
               uint8_t *mat_h, uint8_t *mat_s);
 
-size_t dumer(size_t n, size_t k, size_t r, size_t n1, size_t n2, shr_t shr,
-             isd_t isd);
+int dumer(size_t n, size_t k, size_t r, size_t n1, size_t n2, shr_t shr,
+          isd_t isd);
 void print_solution(size_t n, isd_t isd);
 #endif /* DUMER_H */

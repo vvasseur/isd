@@ -14,16 +14,6 @@ To check whether you have it or not you can run:
 $ cat /proc/cpuinfo | grep avx2
 ```
 
-## Compiling
-
-To compile this program, first you should download and compile m4ri with OpenMP
-support by doing:
-```sh
-$ git clone https://bitbucket.org/malb/m4ri.git
-$ autoreconf --install
-$ ./configure CFLAGS="-Ofast -march=native -flto" --enable-openmp
-$ make
-```
 
 Executable name is `isd`.
 

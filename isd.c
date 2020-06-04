@@ -21,6 +21,8 @@
 */
 #include <omp.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "dumer.h"
 
@@ -368,11 +370,11 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Allocation error.\n");
     exit(EXIT_FAILURE);
   }
-  init_shr(shr, n1, n2);
+  init_shr(shr, n, k, n1, n2);
 
 #pragma omp parallel num_threads(n_threads)
   {
-    isd_t isd = alloc_isd(n, k, r, n1, n2, shr->nb_combinations1);
+    isd_t isd = alloc_isd(n, k, r, n1, n2, shr->nb_combinations1, shr->k_opt);
     if (!isd) {
       fprintf(stderr, "Allocation error.\n");
       exit(EXIT_FAILURE);
@@ -388,7 +390,7 @@ int main(int argc, char *argv[]) {
 #endif
       }
     }
-    free_isd(isd);
+    free_isd(isd, r);
   }
 
   free(mat_h);

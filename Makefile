@@ -1,10 +1,9 @@
 CC=gcc
-SRC=bits.c dumer.c isd.c sort.c xoroshiro128plus.c
+SRC=bits.c dumer.c light_m4ri/matrix.c isd.c sort.c xoroshiro128plus.c
 OBJ=$(SRC:%.c=%.o)
 DEP=$(SRC:%.c=%.d)
 LFLAGS=-fopenmp
-CFLAGS=-Wall -Wextra -std=gnu11 -I ./m4ri/ $(OPT) $(EXTRA)
-LIBS=./m4ri/.libs/libm4ri.a
+CFLAGS=-Wall -Wextra -std=gnu11 $(OPT) $(EXTRA)
 ifdef PROFGEN
     CFLAGS+=-fprofile-generate
 endif
@@ -18,7 +17,7 @@ avx2:
 	make OPT="-Ofast -march=native -flto" isd
 
 format:
-	clang-format -i -verbose -style=google *.c *.h
+	clang-format -i -verbose -style=google *.c *.h light_m4ri/*.c light_m4ri/*.h
 
 isd: $(OBJ)
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@ $(LFLAGS)
