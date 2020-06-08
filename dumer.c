@@ -715,7 +715,7 @@ static int find_collisions(size_t n, size_t r, size_t n1, shr_t shr,
         isd->w_solution = pc;
         build_solution(n, r, n1, shr, isd, pc, idx_orig, N, shift);
         ret = 1;
-#if !(DUMER_LW)
+#if !(DUMER_LW) && !(BENCHMARK)
         return ret;
 #endif
       }

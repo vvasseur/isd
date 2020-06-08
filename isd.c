@@ -23,8 +23,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "dumer.h"
+#ifndef BENCHMARK
+#define BENCHMARK 0
+#endif
+
+struct timespec timer_start() {
+  struct timespec start_time;
+  clock_gettime(CLOCK_MONOTONIC, &start_time);
+  return start_time;
+}
+
+long timer_end(struct timespec start_time) {
+  struct timespec end_time;
+  clock_gettime(CLOCK_MONOTONIC, &end_time);
+  long diff = (end_time.tv_sec - start_time.tv_sec) * (long)1e9 +
+              (end_time.tv_nsec - start_time.tv_nsec);
+  return diff;
+}
 
 static void skip_comment(FILE *file, int *c) {
   *c = getc(file);
@@ -325,7 +343,8 @@ int main(int argc, char *argv[]) {
   }
 
   size_t n, k, w;
-  uint8_t *mat_h, *mat_s;
+  uint8_t *mat_h = NULL;
+  uint8_t *mat_s = NULL;
   size_t len_h, len_s;
 
   int parsed;
@@ -372,6 +391,7 @@ int main(int argc, char *argv[]) {
   }
   init_shr(shr, n, k, n1, n2);
 
+#if (BENCHMARK) <= 0
 #pragma omp parallel num_threads(n_threads)
   {
     isd_t isd = alloc_isd(n, k, r, n1, n2, shr->nb_combinations1, shr->k_opt);
@@ -392,9 +412,37 @@ int main(int argc, char *argv[]) {
     }
     free_isd(isd, r);
   }
+#else
+  isd_t *isd = malloc(n_threads * sizeof(isd_t));
+  if (!isd) {
+    fprintf(stderr, "Allocation error.\n");
+    exit(EXIT_FAILURE);
+  }
+  for (int i = 0; i < n_threads; i++) {
+    isd[i] = alloc_isd(n, k, r, n1, n2, shr->nb_combinations1, shr->k_opt);
+    if (!isd[i]) {
+      fprintf(stderr, "Allocation error.\n");
+      exit(EXIT_FAILURE);
+    }
+    init_isd(isd[i], current_type, n, k, w, mat_h, mat_s);
+  }
+  struct timespec vartime = timer_start();  // begin a timer called 'vartime'
+#pragma omp parallel num_threads(n_threads)
+  {
+    int i = omp_get_thread_num();
+    for (size_t N = 0; N < (BENCHMARK + i) / n_threads; ++N) {
+      dumer(n, k, r, n1, n2, shr, isd[i]);
+    }
+  }
+  long time_elapsed_nanos = timer_end(vartime);
+  printf("%ld\n", time_elapsed_nanos);
+  for (int i = 0; i < n_threads; i++) {
+    free_isd(isd[i], r);
+  }
+#endif
 
-  free(mat_h);
-  free(mat_s);
+  if (mat_h) free(mat_h);
+  if (mat_h) free(mat_s);
   free_shr(shr);
   exit(EXIT_SUCCESS);
 }
