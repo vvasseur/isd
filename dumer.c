@@ -133,15 +133,37 @@ exit:
 }
 
 /* Apply the same permutation to a matrix and an array. */
-static void fisher_yates_matrix(matrix_t A, size_t rows, size_t *perm, size_t n,
-                                size_t n_stop, uint64_t *S0, uint64_t *S1) {
-  for (size_t i = 0; i < n_stop; ++i) {
-    uint32_t rand = i + random_lim(n - 1 - i, S0, S1);
-    matrix_swap_cols(A, i, rand, rows);
-    size_t swp = perm[i];
-    perm[i] = perm[rand];
-    perm[rand] = swp;
+static void shuffle_matrix(matrix_t A, size_t rows, size_t *perm, size_t n,
+                           size_t n_stop, uint64_t *S0, uint64_t *S1) {
+  uint8_t *state = calloc(n, sizeof(uint8_t));
+
+  size_t weight = 0;
+  while (weight < n_stop) {
+    uint32_t rand = random_lim(n - 1, S0, S1);
+    weight += !state[rand];
+    state[rand] = 1;
   }
+
+  /* Swap the columns so that all those marked with a one are on the left-hand
+   * side of the matrix. */
+  size_t i = 0;
+  size_t j = n_stop;
+  while (i < n_stop && j < n) {
+    if (!state[i] && state[j]) {
+      matrix_swap_cols(A, i, j, rows);
+      size_t swp = perm[i];
+      perm[i] = perm[j];
+      perm[j] = swp;
+
+      ++i;
+      ++j;
+    } else {
+      if (state[i]) ++i;
+      if (!state[j]) ++j;
+    }
+  }
+
+  free(state);
 }
 
 /* Randomly choose an information set and perform a Gaussian elimination. */
@@ -151,7 +173,7 @@ static void choose_is(matrix_t A, size_t *perm, size_t n, size_t k, size_t l,
   /* Pick a permutation and perform Gaussian elimination.  */
   size_t r = 0;
   while (r < n - k - l) {
-    fisher_yates_matrix(A, n - k, perm, n, n - k - l, S0, S1);
+    shuffle_matrix(A, n - k, perm, n, n - k - l, S0, S1);
     r = matrix_echelonize_partial(A, n - k, n, k_opt, n - k - l, xor_rows, rev,
                                   diff);
   }
