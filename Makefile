@@ -1,5 +1,5 @@
 CC=gcc
-SRC=bits.c dumer.c light_m4ri/matrix.c isd.c sort.c xoroshiro128plus.c
+SRC=bits.c dumer.c light_m4ri/matrix.c isd.c transpose.c sort.c xoroshiro128plus.c
 OBJ=$(SRC:%.c=%.o)
 DEP=$(SRC:%.c=%.d)
 LFLAGS=-fopenmp

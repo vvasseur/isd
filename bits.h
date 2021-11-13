@@ -44,4 +44,5 @@ void xor_bcast_8(uint8_t x, uint8_t *y, uint8_t *z, unsigned n);
 void xor_bcast_16(uint16_t x, uint8_t *y, uint8_t *z, unsigned n);
 void xor_bcast_32(uint32_t x, uint8_t *y, uint8_t *z, unsigned n);
 void xor_bcast_64(uint64_t x, uint8_t *y, uint8_t *z, unsigned n);
+void copy_avx(uint8_t *dst, const uint8_t *src, unsigned n);
 #endif /* BITS_H */

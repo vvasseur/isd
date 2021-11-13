@@ -170,3 +170,17 @@ void xor_avx4(uint8_t *x, uint8_t *y1, uint8_t *y2, uint8_t *y3, uint8_t *y4,
         :);
   }
 }
+
+void copy_avx(uint8_t *dst, const uint8_t *src, unsigned n) {
+  for (unsigned i = 0; i < n; ++i) {
+    __m256i vec_src;
+    asm("vmovdqa  %[src], %[vec_src]\n\t"
+        : [vec_src] "=x"(vec_src)
+        : [src] "m"(((__m256i *)src)[i])
+        :);
+    asm("vmovdqa  %[vec_src], %[dst]\n\t"
+        : [dst] "=m"(((__m256i *)dst)[i])
+        : [vec_src] "x"(vec_src)
+        :);
+  }
+}

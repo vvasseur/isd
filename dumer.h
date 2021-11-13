@@ -115,6 +115,7 @@ struct shared {
 
 struct isd {
   matrix_t A;
+  matrix_t At;
 
   size_t *perm;
   /* Seeds for pseudo random number generator. */
@@ -169,7 +170,7 @@ void free_shr(shr_t shr);
 void init_shr(shr_t shr, size_t n, size_t k, size_t n1, size_t n2);
 isd_t alloc_isd(size_t n, size_t k, size_t r, size_t n1, size_t n2,
                 uint64_t nb_combinations1, size_t k_opt);
-void free_isd(isd_t isd, size_t r);
+void free_isd(isd_t isd, size_t r, size_t n);
 void init_isd(isd_t isd, enum type current_type, size_t n, size_t k, size_t w,
               uint8_t *mat_h, uint8_t *mat_s);
 

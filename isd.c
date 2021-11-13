@@ -410,7 +410,7 @@ int main(int argc, char *argv[]) {
 #endif
       }
     }
-    free_isd(isd, r);
+    free_isd(isd, r, n);
   }
 #else
   isd_t *isd = malloc(n_threads * sizeof(isd_t));
@@ -437,7 +437,7 @@ int main(int argc, char *argv[]) {
   long time_elapsed_nanos = timer_end(vartime);
   printf("%ld\n", time_elapsed_nanos);
   for (int i = 0; i < n_threads; i++) {
-    free_isd(isd[i], r);
+    free_isd(isd[i], r, n);
   }
 #endif
 
