@@ -91,32 +91,32 @@ void xor_bcast_64(uint64_t x, uint8_t *y, uint8_t *z, unsigned n) {
 
 void xor_avx1(uint8_t *x, uint8_t *y, uint8_t *z, unsigned n) {
   for (unsigned i = 0; i < n; i += 1) {
-    __m256 vec_x;
-    asm("vmovaps   %[x], %[vec_x]\n\t"
+    __m256i vec_x;
+    asm("vmovdqa   %[x], %[vec_x]\n\t"
         : [vec_x] "=x"(vec_x)
-        : [x] "m"(((__m256 *)x)[i])
+        : [x] "m"(((__m256i *)x)[i])
         :);
-    asm("vxorps   %[vec_yi], %[vec_x], %[vec_z]\n\t"
-        : [vec_z] "=x"(((__m256 *)z)[i])
-        : [vec_x] "%x"(vec_x), [vec_yi] "m"(((__m256 *)y)[i])
+    asm("vpxor   %[vec_yi], %[vec_x], %[vec_z]\n\t"
+        : [vec_z] "=x"(((__m256i *)z)[i])
+        : [vec_x] "%x"(vec_x), [vec_yi] "m"(((__m256i *)y)[i])
         :);
   }
 }
 
 void xor_avx2(uint8_t *x, uint8_t *y1, uint8_t *y2, uint8_t *z, unsigned n) {
   for (unsigned i = 0; i < n; i += 1) {
-    __m256 vec_x;
-    asm("vmovaps   %[x], %[vec_x]\n\t"
+    __m256i vec_x;
+    asm("vmovdqa   %[x], %[vec_x]\n\t"
         : [vec_x] "=x"(vec_x)
-        : [x] "m"(((__m256 *)x)[i])
+        : [x] "m"(((__m256i *)x)[i])
         :);
-    asm("vxorps   %[vec_yi], %[vec_x], %[vec_x]\n\t"
+    asm("vpxor   %[vec_yi], %[vec_x], %[vec_x]\n\t"
         : [vec_x] "+x"(vec_x)
-        : [vec_yi] "m"(((__m256 *)y1)[i])
+        : [vec_yi] "m"(((__m256i *)y1)[i])
         :);
-    asm("vxorps   %[vec_yi], %[vec_x], %[vec_z]\n\t"
-        : [vec_z] "=x"(((__m256 *)z)[i])
-        : [vec_x] "%x"(vec_x), [vec_yi] "m"(((__m256 *)y2)[i])
+    asm("vpxor   %[vec_yi], %[vec_x], %[vec_z]\n\t"
+        : [vec_z] "=x"(((__m256i *)z)[i])
+        : [vec_x] "%x"(vec_x), [vec_yi] "m"(((__m256i *)y2)[i])
         :);
   }
 }
@@ -124,22 +124,22 @@ void xor_avx2(uint8_t *x, uint8_t *y1, uint8_t *y2, uint8_t *z, unsigned n) {
 void xor_avx3(uint8_t *x, uint8_t *y1, uint8_t *y2, uint8_t *y3, uint8_t *z,
               unsigned n) {
   for (unsigned i = 0; i < n; i += 1) {
-    __m256 vec_x;
-    asm("vmovaps   %[x], %[vec_x]\n\t"
+    __m256i vec_x;
+    asm("vmovdqa   %[x], %[vec_x]\n\t"
         : [vec_x] "=x"(vec_x)
-        : [x] "m"(((__m256 *)x)[i])
+        : [x] "m"(((__m256i *)x)[i])
         :);
-    asm("vxorps   %[vec_yi], %[vec_x], %[vec_x]\n\t"
+    asm("vpxor   %[vec_yi], %[vec_x], %[vec_x]\n\t"
         : [vec_x] "+x"(vec_x)
-        : [vec_yi] "m"(((__m256 *)y1)[i])
+        : [vec_yi] "m"(((__m256i *)y1)[i])
         :);
-    asm("vxorps   %[vec_yi], %[vec_x], %[vec_x]\n\t"
+    asm("vpxor   %[vec_yi], %[vec_x], %[vec_x]\n\t"
         : [vec_x] "+x"(vec_x)
-        : [vec_yi] "m"(((__m256 *)y2)[i])
+        : [vec_yi] "m"(((__m256i *)y2)[i])
         :);
-    asm("vxorps   %[vec_yi], %[vec_x], %[vec_z]\n\t"
-        : [vec_z] "=x"(((__m256 *)z)[i])
-        : [vec_x] "%x"(vec_x), [vec_yi] "m"(((__m256 *)y3)[i])
+    asm("vpxor   %[vec_yi], %[vec_x], %[vec_z]\n\t"
+        : [vec_z] "=x"(((__m256i *)z)[i])
+        : [vec_x] "%x"(vec_x), [vec_yi] "m"(((__m256i *)y3)[i])
         :);
   }
 }
@@ -147,26 +147,26 @@ void xor_avx3(uint8_t *x, uint8_t *y1, uint8_t *y2, uint8_t *y3, uint8_t *z,
 void xor_avx4(uint8_t *x, uint8_t *y1, uint8_t *y2, uint8_t *y3, uint8_t *y4,
               uint8_t *z, unsigned n) {
   for (unsigned i = 0; i < n; i += 1) {
-    __m256 vec_x;
-    asm("vmovaps   %[x], %[vec_x]\n\t"
+    __m256i vec_x;
+    asm("vmovdqa   %[x], %[vec_x]\n\t"
         : [vec_x] "=x"(vec_x)
-        : [x] "m"(((__m256 *)x)[i])
+        : [x] "m"(((__m256i *)x)[i])
         :);
-    asm("vxorps   %[vec_yi], %[vec_x], %[vec_x]\n\t"
+    asm("vpxor   %[vec_yi], %[vec_x], %[vec_x]\n\t"
         : [vec_x] "+x"(vec_x)
-        : [vec_yi] "m"(((__m256 *)y1)[i])
+        : [vec_yi] "m"(((__m256i *)y1)[i])
         :);
-    asm("vxorps   %[vec_yi], %[vec_x], %[vec_x]\n\t"
+    asm("vpxor   %[vec_yi], %[vec_x], %[vec_x]\n\t"
         : [vec_x] "+x"(vec_x)
-        : [vec_yi] "m"(((__m256 *)y2)[i])
+        : [vec_yi] "m"(((__m256i *)y2)[i])
         :);
-    asm("vxorps   %[vec_yi], %[vec_x], %[vec_x]\n\t"
+    asm("vpxor   %[vec_yi], %[vec_x], %[vec_x]\n\t"
         : [vec_x] "+x"(vec_x)
-        : [vec_yi] "m"(((__m256 *)y3)[i])
+        : [vec_yi] "m"(((__m256i *)y3)[i])
         :);
-    asm("vxorps   %[vec_yi], %[vec_x], %[vec_z]\n\t"
-        : [vec_z] "=x"(((__m256 *)z)[i])
-        : [vec_x] "%x"(vec_x), [vec_yi] "m"(((__m256 *)y4)[i])
+    asm("vpxor   %[vec_yi], %[vec_x], %[vec_z]\n\t"
+        : [vec_z] "=x"(((__m256i *)z)[i])
+        : [vec_x] "%x"(vec_x), [vec_yi] "m"(((__m256i *)y4)[i])
         :);
   }
 }
