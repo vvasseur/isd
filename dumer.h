@@ -23,6 +23,9 @@
 #define DUMER_H
 #include <omp.h>
 
+#define TOKEN_CAT(x, y) x##y
+#define XTOKEN_CAT(x, y) TOKEN_CAT(x, y)
+
 #include "light_m4ri/matrix.h"
 
 #ifndef DUMER_L
@@ -88,6 +91,7 @@
 #else
 #define DUMER_L_MASK ((uint64_t)((1UL << DUMER_L) - 1))
 #endif
+#define xor_bcast XTOKEN_CAT(xor_bcast_, LIST_WIDTH)
 
 enum type { QC, SD, LW, GO };
 

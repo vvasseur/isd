@@ -301,21 +301,8 @@ static void build_list(unsigned n, isd_t isd, const LIST_TYPE *columns,
 #endif
     LIST_TYPE val = prev_scratch[i0];
 #if DUMER_P1 >= 2
-#if DUMER_L <= 8
-    xor_bcast_32(((uint32_t)val << 24) | ((uint32_t)val << 16) |
-                     ((uint32_t)val << 8) | val,
-                 (uint8_t *)columns, (uint8_t *)scratch0,
-                 AVX_PADDING(i0 * 8) / 256);
-#elif DUMER_L <= 16
-    xor_bcast_32(((uint32_t)val << 16) | val, (uint8_t *)columns,
-                 (uint8_t *)scratch0, AVX_PADDING(i0 * 16) / 256);
-#elif DUMER_L <= 32
-    xor_bcast_32(val, (uint8_t *)columns, (uint8_t *)scratch0,
-                 AVX_PADDING(i0 * 32) / 256);
-#elif DUMER_L <= 64
-    xor_bcast_64(val, (uint8_t *)columns, (uint8_t *)scratch0,
-                 AVX_PADDING(i0 * 64) / 256);
-#endif
+    xor_bcast(val, (uint8_t *)columns, (uint8_t *)scratch0,
+              AVX_PADDING(i0 * LIST_WIDTH) / 256);
 
     LIST_TYPE *prev_scratch = scratch0;
 #if DUMER_P1 == 2
@@ -325,21 +312,8 @@ static void build_list(unsigned n, isd_t isd, const LIST_TYPE *columns,
 #endif
       LIST_TYPE val = prev_scratch[i1];
 #if DUMER_P1 >= 3
-#if DUMER_L <= 8
-      xor_bcast_32(((uint32_t)val << 24) | ((uint32_t)val << 16) |
-                       ((uint32_t)val << 8) | val,
-                   (uint8_t *)columns, (uint8_t *)scratch1,
-                   AVX_PADDING(i1 * 8) / 256);
-#elif DUMER_L <= 16
-      xor_bcast_32(((uint32_t)val << 16) | val, (uint8_t *)columns,
-                   (uint8_t *)scratch1, AVX_PADDING(i1 * 16) / 256);
-#elif DUMER_L <= 32
-      xor_bcast_32(val, (uint8_t *)columns, (uint8_t *)scratch1,
-                   AVX_PADDING(i1 * 32) / 256);
-#elif DUMER_L <= 64
-      xor_bcast_64(val, (uint8_t *)columns, (uint8_t *)scratch1,
-                   AVX_PADDING(i1 * 64) / 256);
-#endif
+      xor_bcast(val, (uint8_t *)columns, (uint8_t *)scratch1,
+                AVX_PADDING(i1 * LIST_WIDTH) / 256);
 
       LIST_TYPE *prev_scratch = scratch1;
 #if DUMER_P1 == 3
@@ -349,21 +323,8 @@ static void build_list(unsigned n, isd_t isd, const LIST_TYPE *columns,
 #endif
         LIST_TYPE val = prev_scratch[i2];
 #if DUMER_P1 >= 4
-#if DUMER_L <= 8
-        xor_bcast_32(((uint32_t)val << 24) | ((uint32_t)val << 16) |
-                         ((uint32_t)val << 8) | val,
-                     (uint8_t *)columns, (uint8_t *)scratch2,
-                     AVX_PADDING(i2 * 8) / 256);
-#elif DUMER_L <= 16
-        xor_bcast_32(((uint32_t)val << 16) | val, (uint8_t *)columns,
-                     (uint8_t *)scratch2, AVX_PADDING(i2 * 16) / 256);
-#elif DUMER_L <= 32
-        xor_bcast_32(val, (uint8_t *)columns, (uint8_t *)scratch2,
-                     AVX_PADDING(i2 * 32) / 256);
-#elif DUMER_L <= 64
-        xor_bcast_64(val, (uint8_t *)columns, (uint8_t *)scratch2,
-                     AVX_PADDING(i2 * 64) / 256);
-#endif
+        xor_bcast(val, (uint8_t *)columns, (uint8_t *)scratch2,
+                  AVX_PADDING(i2 * LIST_WIDTH) / 256);
 
         LIST_TYPE *prev_scratch = scratch2;
 #if DUMER_P1 == 4
@@ -372,21 +333,8 @@ static void build_list(unsigned n, isd_t isd, const LIST_TYPE *columns,
         for (size_t i3 = i2; i3-- > DUMER_P1 - 4;) {
 #endif
           LIST_TYPE val = prev_scratch[i3];
-#if DUMER_L <= 8
-          xor_bcast_32(((uint32_t)val << 24) | ((uint32_t)val << 16) |
-                           ((uint32_t)val << 8) | val,
-                       (uint8_t *)columns, (uint8_t *)scratch3,
-                       AVX_PADDING(i3 * 8) / 256);
-#elif DUMER_L <= 16
-          xor_bcast_32(((uint32_t)val << 16) | val, (uint8_t *)columns,
-                       (uint8_t *)scratch3, AVX_PADDING(i3 * 16) / 256);
-#elif DUMER_L <= 32
-        xor_bcast_32(val, (uint8_t *)columns, (uint8_t *)scratch3,
-                     AVX_PADDING(i3 * 32) / 256);
-#elif DUMER_L <= 64
-        xor_bcast_64(val, (uint8_t *)columns, (uint8_t *)scratch3,
-                     AVX_PADDING(i3 * 64) / 256);
-#endif
+          xor_bcast(val, (uint8_t *)columns, (uint8_t *)scratch3,
+                    AVX_PADDING(i3 * LIST_WIDTH) / 256);
 #endif
 #endif
 #endif

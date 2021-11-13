@@ -40,6 +40,8 @@ void xor_avx3(uint8_t *x, uint8_t *y1, uint8_t *y2, uint8_t *y3, uint8_t *z,
 void xor_avx4(uint8_t *x, uint8_t *y1, uint8_t *y2, uint8_t *y3, uint8_t *y4,
               uint8_t *z, unsigned n);
 
+void xor_bcast_8(uint8_t x, uint8_t *y, uint8_t *z, unsigned n);
+void xor_bcast_16(uint16_t x, uint8_t *y, uint8_t *z, unsigned n);
 void xor_bcast_32(uint32_t x, uint8_t *y, uint8_t *z, unsigned n);
 void xor_bcast_64(uint64_t x, uint8_t *y, uint8_t *z, unsigned n);
 #endif /* BITS_H */
