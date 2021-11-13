@@ -64,18 +64,22 @@
 
 #if DUMER_L <= 8
 #define LIST_WIDTH 8
+#define SORT_WIDTH 8
 #define LIST_TYPE uint8_t
 #define SORT_TYPE uint8_t
 #elif DUMER_L <= 16
 #define LIST_WIDTH 16
+#define SORT_WIDTH 16
 #define LIST_TYPE uint16_t
 #define SORT_TYPE uint16_t
 #elif DUMER_L <= 32
 #define LIST_WIDTH 32
+#define SORT_WIDTH 32
 #define LIST_TYPE uint32_t
 #define SORT_TYPE uint32_t
 #elif DUMER_L <= 64
 #define LIST_WIDTH 64
+#define SORT_WIDTH 64
 #define LIST_TYPE uint64_t
 #define SORT_TYPE uint64_t
 #endif

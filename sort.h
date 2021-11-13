@@ -25,6 +25,6 @@
 
 #include "dumer.h"
 
-void sort(SORT_TYPE *array, size_t *idx, SORT_TYPE *aux, size_t *aux2,
-          size_t len);
+void sort(SORT_TYPE *restrict array, size_t *restrict idx,
+          SORT_TYPE *restrict aux, size_t *restrict aux2, size_t len);
 #endif /* SORT_H */
