@@ -21,7 +21,7 @@
 */
 #ifndef TRANSPOSE_H
 #define TRANSPOSE_H
-#include "light_m4ri/matrix.h"
+#include "matrix.h"
 
 void matrix_transpose(matrix_t At, const matrix_t A, const size_t nrows,
                       const size_t ncols);

@@ -30,7 +30,7 @@ def proba(N, K, W, L, P, EPS):
 # Estimated time in microseconds
 def estimate_time(command, LW, W, P, L, EPS):
     compile_command = """
-    EXTRA="-DDUMER_L={l}L -DDUMER_P={p}L -DDUMER_EPS={eps}L -DDUMER_LW={lw} -DBENCHMARK={nb_benchmark}UL" make -B
+    cmake -B build -DDUMER_L={l}L -DDUMER_P={p}L -DDUMER_EPS={eps}L -DDUMER_LW={lw} -DBENCHMARK={nb_benchmark}UL && cmake --build build/ -j
     """.format(l=L, p=P, eps=EPS, lw=LW, nb_benchmark=NB_BENCHMARK)
     comp = subprocess.Popen(compile_command,
                             shell=True,
@@ -62,7 +62,7 @@ def estimate_time(command, LW, W, P, L, EPS):
 
 
 if __name__ == '__main__':
-    command = ["./isd"]
+    command = ["build/isd"]
     P = 4
     W = 0
     EPS = 10
@@ -108,5 +108,5 @@ if __name__ == '__main__':
             _, vmin = min((times[v], v) for v in vs)
             P, L, EPS = vmin
 
-    print("EXTRA=\"-DDUMER_P={p}L -DDUMER_L={l}L -DDUMER_EPS={eps}L\"".format(
+    print("-DDUMER_P={p}L -DDUMER_L={l}L -DDUMER_EPS={eps}L".format(
         p=P, l=L, eps=EPS))

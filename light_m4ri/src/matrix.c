@@ -22,7 +22,7 @@
 
 #include <stdlib.h>
 
-#include "../bits.h"
+#include "bits.h"
 
 matrix_t matrix_alloc(size_t rows, size_t cols) {
   matrix_t ret = malloc(rows * sizeof(word_t *));

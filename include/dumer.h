@@ -26,7 +26,7 @@
 #define TOKEN_CAT(x, y) x##y
 #define XTOKEN_CAT(x, y) TOKEN_CAT(x, y)
 
-#include "light_m4ri/matrix.h"
+#include "matrix.h"
 
 #ifndef DUMER_L
 #define DUMER_L 16L

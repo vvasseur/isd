@@ -27,7 +27,7 @@
 #include <string.h>
 
 #include "bits.h"
-#include "light_m4ri/matrix.h"
+#include "matrix.h"
 #include "sort.h"
 #include "transpose.h"
 #include "xoroshiro128plus.h"

@@ -60,7 +60,7 @@ Dumer parameters are chosen at compile time. They are:
 
 To set them the most convenient way is probably doing, for example:
 ```sh
-$ EXTRA="-DDUMER_L=16 -DDUMER_P=4 -DDUMER_EPS=40 -DDUMER_DOOM=0 -DDUMER_LW=0" make -B
+$ cmake -B build -DDUMER_L=16 -DDUMER_P=4 -DDUMER_EPS=40 -DDUMER_DOOM=0 -DDUMER_LW=0 && cmake --build build/
 ```
 
 
@@ -76,7 +76,7 @@ If used for low-weight codeword finding, a target weight `W` should be provided 
 - Example in the quasi-cyclic setting
 ```sh
 $ wget http://decodingchallenge.org/Challenges/QC/Provider0/QC_30
-$ python3 optimize.py 8 QC QC_30 P=5
+$ python3 scripts/optimize.py 8 QC QC_30 P=5
     P     L   EPS Est. time
     5    12    10 0:06:02.380958
     5    12     9 0:06:06.140503
@@ -87,13 +87,13 @@ $ python3 optimize.py 8 QC QC_30 P=5
     5    20    10 0:01:58.913279
     5    20     9 0:01:55.195710
     5    20    11 0:01:53.693244
-EXTRA="-DDUMER_P=5L -DDUMER_L=19L -DDUMER_EPS=10L"
+-DDUMER_P=5L -DDUMER_L=19L -DDUMER_EPS=10L
 ```
 
 - Example in the low-weight codeword finding setting
 ```sh
 $ wget https://decodingchallenge.org/Challenges/LW/LW_1280_0
-$ python3 optimize.py 8 LW LW_1280_0 W=230
+$ python3 scripts/optimize.py 8 LW LW_1280_0 W=230
     P     L   EPS Est. time
     4    12    10 2:43:51.936259
     4    12     9 2:39:50.257167
@@ -105,7 +105,7 @@ $ python3 optimize.py 8 LW LW_1280_0 W=230
     4    12    13 2:37:16.885877
     4    11    13 2:47:01.252960
     4    13    13 2:51:33.162128
-EXTRA="-DDUMER_P=4L -DDUMER_L=12L -DDUMER_EPS=12L"
+-DDUMER_P=4L -DDUMER_L=12L -DDUMER_EPS=12L
 ```
 
 
