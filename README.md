@@ -6,6 +6,10 @@ It is written specifically to solve decoding challenges on
 [this website](http://decodingchallenge.org/).
 
 
+## Platforms
+Intel AVX2 or Arm Neon, support via intrinsics. For Neon, clone github.com/kunpengcompute/AvxToNeon.git
+
+
 ## Prerequisite
 
 This will not run if your CPU does not have the AVX2 instruction set.
