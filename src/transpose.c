@@ -21,7 +21,12 @@
 */
 #include "transpose.h"
 
+#ifdef __aarch64__
+// https://github.com/kunpengcompute/AvxToNeon
+#include "../../AvxToNeon/avx2neon.h"
+#else
 #include <immintrin.h>
+#endif
 
 /* Transpose a bit-matrix using the vpmovmskb instruction.
  *
@@ -37,18 +42,12 @@ void matrix_transpose(matrix_t At, const matrix_t A, const size_t nrows,
       for (size_t k = 0; k < 32; ++k) {
         in[k] = (((int8_t **)A)[k + i * 32])[j];
       }
-      asm("vmovdqa   %[x], %[vec_x] \n\t"
-          : [vec_x] "=x"(vec_x)
-          : [x] "m"(*((__m256 *)&in))
-          :);
+
+      vec_x = _mm256_load_si256((__m256i*)in);
       for (size_t k = 8; k-- > 0;) {
         int32_t hi;
-        asm("vpmovmskb       %[vec_x], %[hi] \n\t"
-            : [hi] "=r"(hi)
-            : [vec_x] "x"(vec_x)
-            :);
-        asm("vpsllw       $0x1, %[vec_x], %[vec_x] \n\t"
-            : [vec_x] "+x"(vec_x)::);
+        hi = _mm256_movemask_epi8(vec_x);
+        vec_x = _mm256_slli_epi64(vec_x, 1);
         (((int32_t **)At)[k + j * 8])[i] = hi;
       }
     }
